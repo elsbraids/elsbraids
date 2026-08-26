@@ -1,0 +1,72 @@
+import { useEffect, useState } from 'react';
+import axios from 'axios';
+import { Eye, X } from 'lucide-react';
+
+const categories = ['All', 'Braids', 'Curls', 'Piercing', 'Other'];
+
+function GalleryPage() {
+  const [items, setItems] = useState([]);
+  const [activeCategory, setActiveCategory] = useState('All');
+  const [viewingItem, setViewingItem] = useState(null);
+
+  useEffect(() => {
+    axios.get('/api/gallery').then((res) => setItems(res.data.data || [])).catch(console.error);
+  }, []);
+
+  useEffect(() => {
+    if (!viewingItem) return undefined;
+    const closeOnEscape = (event) => {
+      if (event.key === 'Escape') setViewingItem(null);
+    };
+    document.addEventListener('keydown', closeOnEscape);
+    return () => document.removeEventListener('keydown', closeOnEscape);
+  }, [viewingItem]);
+
+  const filtered = activeCategory === 'All' ? items : items.filter((item) => item.category === activeCategory);
+
+  return (
+    <div className="mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-8">
+      <div className="mb-8 text-center">
+        <p className="text-sm font-semibold uppercase tracking-[0.28em] text-[#7a3855]">Gallery</p>
+        <h1 className="mt-3 text-4xl font-black uppercase text-[#5b2b45]">Recent styles</h1>
+      </div>
+      <div className="mb-8 flex flex-wrap justify-center gap-3">
+        {categories.map((category) => (
+          <button
+            key={category}
+            onClick={() => setActiveCategory(category)}
+            className={`rounded-full px-4 py-2 text-sm font-semibold ${activeCategory === category ? 'bg-[#5b2b45] text-white' : 'border border-[#d9bcc7] bg-white text-[#5b2b45]'}`}
+          >
+            {category}
+          </button>
+        ))}
+      </div>
+      <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
+        {filtered.map((item) => (
+          <div key={item.id} className="group relative min-h-[360px] overflow-hidden rounded-[1.5rem] shadow-lg">
+            <img src={item.image} alt={item.title} className="absolute inset-0 h-full w-full object-cover transition-transform duration-700 group-hover:scale-105" />
+            <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/35 to-transparent" />
+            <div className="absolute inset-x-0 bottom-0 p-5 text-white">
+              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-[#f8dbe8]">{item.category}</p>
+              <h3 className="mt-2 text-2xl font-bold leading-tight drop-shadow">{item.title}</h3>
+              {item.description && <p className="mt-2 line-clamp-2 text-sm leading-6 text-white/80">{item.description}</p>}
+              <button type="button" onClick={() => setViewingItem(item)} className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-full bg-white/15 px-4 py-2.5 text-sm font-semibold text-white backdrop-blur-sm ring-1 ring-white/30 transition hover:bg-white hover:text-[#5b2b45]">
+                View <Eye size={15} />
+              </button>
+            </div>
+          </div>
+        ))}
+      </div>
+      {viewingItem && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/80 p-4" role="dialog" aria-modal="true" aria-label={`${viewingItem.title} enlarged view`} onClick={() => setViewingItem(null)}>
+          <div className="relative max-h-full max-w-5xl" onClick={(event) => event.stopPropagation()}>
+            <img src={viewingItem.image} alt={viewingItem.title} className="max-h-[85vh] max-w-full rounded-xl object-contain shadow-2xl" />
+            <button type="button" onClick={() => setViewingItem(null)} aria-label="Close enlarged image" className="absolute right-2 top-2 rounded-full bg-black/70 p-2 text-white transition hover:bg-black"><X size={20} /></button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+export default GalleryPage;

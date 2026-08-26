@@ -1,0 +1,51 @@
+@import url('https://fonts.googleapis.com/css2?family=Twinkle+Star&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  font-family: 'Segoe UI', sans-serif;
+  line-height: 1.5;
+  font-weight: 400;
+  color: #2b1d22;
+  background: #f9efef;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  margin: 0;
+  min-width: 320px;
+  min-height: 100vh;
+  background: #f9efef;
+}
+
+#root {
+  min-height: 100vh;
+}
+
+img {
+  display: block;
+  max-width: 100%;
+}
+
+a {
+  text-decoration: none;
+}
+
+button,
+input,
+textarea {
+  font: inherit;
+}
+
+* {
+  box-sizing: border-box;
+}

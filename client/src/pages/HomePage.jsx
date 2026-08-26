@@ -1,0 +1,195 @@
+import { Link } from 'react-router-dom';
+import { Clock3, MapPin, ArrowLeft, ArrowRight } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import axios from 'axios';
+
+const heroImage = '/hero_braids.jpg';
+const heroSlides = [
+  { image: heroImage, alt: "Professional braiding at EL'S BRAIDS salon" },
+  // Woman with stunning long box braids — Oladimeji Odunsi on Unsplash
+  { image: 'https://images.unsplash.com/photo-1560869713-7d0a29430803?auto=format&fit=crop&w=1600&q=85', alt: 'Woman with beautiful long box braids' },
+  // Braiding hands close-up in a salon — Irene Strong on Unsplash
+  { image: 'https://images.unsplash.com/photo-1522337360788-8b13dee7a37e?auto=format&fit=crop&w=1600&q=85', alt: 'Skilled braiding at EL\'S BRAIDS studio' },
+];
+
+// Braiding & hair care specific images for service cards
+const SERVICE_FALLBACK_IMAGES = [
+  // Box braids
+  'https://images.unsplash.com/photo-1560869713-7d0a29430803?auto=format&fit=crop&w=800&q=80',
+  // Cornrows / neat braids
+  'https://images.unsplash.com/photo-1595476108010-b4d1f102b1b1?auto=format&fit=crop&w=800&q=80',
+  // Natural hair salon styling
+  'https://images.unsplash.com/photo-1522337360788-8b13dee7a37e?auto=format&fit=crop&w=800&q=80',
+  // Goddess locs / faux locs
+  'https://images.unsplash.com/photo-1580618672591-eb180b1a973f?auto=format&fit=crop&w=800&q=80',
+  // Hair treatment / moisturizing
+  'https://images.unsplash.com/photo-1562322140-8baeececf3df?auto=format&fit=crop&w=800&q=80',
+  // Salon chair & styling
+  'https://images.unsplash.com/photo-1521590832167-7e5d18d02b3c?auto=format&fit=crop&w=800&q=80',
+];
+
+function HomePage() {
+  const [services, setServices] = useState([]);
+  const [settings, setSettings] = useState({});
+  const [activeHeroSlide, setActiveHeroSlide] = useState(0);
+  const [touchImageId, setTouchImageId] = useState(null);
+  const uploadedHeroImages = settings.heroImages?.filter(Boolean) || [];
+  const displayedHeroSlides = uploadedHeroImages.length > 0
+    ? uploadedHeroImages.map((image, index) => ({ image, alt: `EL'S BRAIDS hero image ${index + 1}` }))
+    : heroSlides;
+
+  const showPreviousHero = () => {
+    setActiveHeroSlide((current) => (current - 1 + displayedHeroSlides.length) % displayedHeroSlides.length);
+  };
+
+  const showNextHero = () => {
+    setActiveHeroSlide((current) => (current + 1) % displayedHeroSlides.length);
+  };
+
+  useEffect(() => {
+    const timer = window.setInterval(showNextHero, 7000);
+    return () => window.clearInterval(timer);
+  }, []);
+
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const [servicesRes, settingsRes] = await Promise.all([
+          axios.get('/api/services'),
+          axios.get('/api/settings'),
+        ]);
+        setServices((servicesRes.data.data || []).slice(0, 6));
+        setSettings(settingsRes.data.data || {});
+      } catch (error) {
+        console.error('Failed to load home data', error);
+      }
+    };
+    fetchData();
+  }, []);
+
+  return (
+    <div>
+      {/* ── HERO ── */}
+      <section className="relative isolate min-h-[680px] overflow-hidden sm:min-h-[720px]">
+        {displayedHeroSlides.map((slide, index) => (
+          <img
+            key={slide.image}
+            src={slide.image}
+            alt={slide.alt}
+            aria-hidden={index !== activeHeroSlide}
+            className={`absolute inset-0 -z-20 h-full w-full object-cover object-center transition-opacity duration-1000 ${index === activeHeroSlide ? 'opacity-100' : 'opacity-0'}`}
+          />
+        ))}
+        {/* deep gradient left-to-right for text legibility */}
+        <div className="absolute inset-0 -z-10 bg-[linear-gradient(90deg,rgba(30,8,20,0.92)_0%,rgba(55,18,40,0.72)_45%,rgba(30,8,20,0.18)_100%)]" />
+
+        <div className="mx-auto flex min-h-[680px] max-w-7xl items-center px-4 py-16 sm:min-h-[720px] sm:px-6 lg:px-8">
+          <div className="max-w-xl text-white">
+            <div className="space-y-7">
+              <div className="text-xs font-semibold uppercase tracking-[0.22em] text-[#f8dbe8]">
+                Premium beauty studio · Kumasi, Ghana
+              </div>
+              <div>
+                <h1 className="font-['Twinkle_Star',cursive] text-5xl leading-[0.9] sm:text-6xl lg:text-8xl">
+                  EL'S <span className="block">BRAIDS</span>
+                </h1>
+                <p className="mt-5 max-w-md text-xl italic leading-tight text-[#f8dbe8] sm:text-2xl">
+                  Beautiful Hair. Beautiful You.
+                </p>
+              </div>
+              <div className="flex items-center gap-3 text-sm font-medium text-white/90 sm:text-base">
+                <MapPin size={18} className="shrink-0 text-[#f8dbe8]" />
+                <span>{String(settings.location || 'Atonsu, Kumasi, Ghana').replace(/Atomsu/gi, 'Atonsu')}</span>
+              </div>
+              <div className="flex flex-wrap gap-3 pt-1">
+                <Link
+                  to="/book"
+                  className="rounded-full bg-white px-6 py-3 text-sm font-semibold text-[#5b2b45] shadow-lg transition hover:bg-[#f8dbe8]"
+                >
+                  BOOK NOW
+                </Link>
+                <Link
+                  to="/shop"
+                  className="rounded-full border border-white/70 bg-transparent px-6 py-3 text-sm font-semibold text-white transition hover:bg-white/20"
+                >
+                  SHOP PRODUCTS
+                </Link>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="absolute bottom-8 right-4 flex items-center gap-3 sm:right-8">
+          <button type="button" onClick={showPreviousHero} aria-label="Previous hero image" className="rounded-full border border-white/60 bg-black/20 p-3 text-white backdrop-blur-sm transition hover:bg-white hover:text-[#5b2b45]">
+            <ArrowLeft size={18} />
+          </button>
+          <div className="flex items-center gap-2" aria-label="Hero image slides">
+            {displayedHeroSlides.map((slide, index) => (
+              <button
+                key={slide.image}
+                type="button"
+                onClick={() => setActiveHeroSlide(index)}
+                aria-label={`Show hero image ${index + 1}`}
+                aria-current={index === activeHeroSlide ? 'true' : undefined}
+                className={`h-2.5 rounded-full transition-all ${index === activeHeroSlide ? 'w-8 bg-white' : 'w-2.5 bg-white/50 hover:bg-white/80'}`}
+              />
+            ))}
+          </div>
+          <button type="button" onClick={showNextHero} aria-label="Next hero image" className="rounded-full border border-white/60 bg-black/20 p-3 text-white backdrop-blur-sm transition hover:bg-white hover:text-[#5b2b45]">
+            <ArrowRight size={18} />
+          </button>
+        </div>
+      </section>
+
+      {/* ── SERVICES GRID ── */}
+      <section className="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8">
+        <div className="mb-10 text-center">
+          <p className="text-sm font-semibold uppercase tracking-[0.28em] text-[#7a3855]">Our Services</p>
+          <h2 className="mt-3 text-3xl font-bold text-[#5b2b45]">Signature beauty care</h2>
+        </div>
+
+        <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
+          {services.map((service, idx) => {
+            const bgImg = service.images?.[0] || SERVICE_FALLBACK_IMAGES[idx % SERVICE_FALLBACK_IMAGES.length];
+            const alternateImg = service.images?.[1] || SERVICE_FALLBACK_IMAGES[(idx + 1) % SERVICE_FALLBACK_IMAGES.length];
+            const cardContent = (
+              <div className="absolute inset-x-0 bottom-0 p-5 text-white">
+                <h3 className="text-2xl font-bold leading-tight drop-shadow">{service.name}</h3>
+                <p className="mt-2 line-clamp-2 text-sm leading-6 text-white/80">{service.description}</p>
+                <div className="mt-3 flex items-center justify-between text-sm">
+                  <span className="font-semibold text-[#f8dbe8]">GHC {service.price}</span>
+                  <span className="flex items-center gap-1 text-white/75">
+                    <Clock3 size={14} /> {service.duration}
+                  </span>
+                </div>
+                <Link
+                  to={`/book?service=${service.id}`}
+                  onClick={(event) => event.stopPropagation()}
+                  className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-full bg-white/15 px-4 py-2.5 text-sm font-semibold text-white backdrop-blur-sm ring-1 ring-white/30 transition hover:bg-white hover:text-[#5b2b45]"
+                >
+                  Book Now <ArrowRight size={15} />
+                </Link>
+              </div>
+            );
+            return (
+              <div
+                key={service.id}
+                className="group relative overflow-hidden rounded-[1.5rem] shadow-lg"
+                style={{ minHeight: '340px' }}
+              >
+                <div className="relative h-[340px] cursor-pointer overflow-hidden rounded-[1.5rem]" onClick={() => setTouchImageId((current) => current === service.id ? null : service.id)}>
+                  <img src={bgImg} alt={service.name} className={`absolute inset-0 h-full w-full object-cover transition-transform duration-700 ease-out [@media(hover:hover)]:group-hover:-translate-x-full ${touchImageId === service.id ? '-translate-x-full' : ''}`} />
+                  <img src={alternateImg} alt={`${service.name} alternate style`} className={`absolute inset-0 h-full w-full translate-x-full object-cover transition-transform duration-700 ease-out [@media(hover:hover)]:group-hover:translate-x-0 ${touchImageId === service.id ? 'translate-x-0' : ''}`} />
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent" />
+                  {cardContent}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </section>
+    </div>
+  );
+}
+
+export default HomePage;

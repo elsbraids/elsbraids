@@ -1,0 +1,441 @@
+const express = require('express');
+const router = express.Router();
+const { inMemoryStore } = require('../data/sampleData');
+const { makeId, resolveGoogleMapsEmbed } = require('../data/sampleData');
+const bcrypt = require('bcryptjs');
+const jwt = require('jsonwebtoken');
+const { protect } = require('../middleware/auth');
+const { customerProtect } = require('../middleware/customerAuth');
+const rateLimit = require('express-rate-limit');
+const { getJwtSecret, jwtOptions } = require('../config/security');
+const { validateCustomerSignup, validateCustomerCredentials } = require('../utils/customerAuth');
+const { cleanText, isEmail, isPhone, parseSafeUrl, parseItems } = require('../utils/requestValidation');
+const crypto = require('crypto');
+const { Customer, Product, Booking, Order, Payment } = require('../models');
+const { isDatabaseReady } = require('../utils/database');
+
+const authLimiter = rateLimit({ windowMs: 15 * 60 * 1000, limit: 10, standardHeaders: true, legacyHeaders: false, message: { message: 'Too many authentication attempts. Please try again later.' } });
+const actionLimiter = rateLimit({ windowMs: 15 * 60 * 1000, limit: 20, standardHeaders: true, legacyHeaders: false, message: { message: 'Too many requests. Please try again later.' } });
+
+const createCustomerToken = (customer) => jwt.sign(
+  { sub: customer.id, role: 'customer', email: customer.email },
+  getJwtSecret(),
+  jwtOptions,
+);
+
+const createAdminToken = (admin) => jwt.sign(
+  { sub: admin.id, role: 'admin' },
+  getJwtSecret(),
+  jwtOptions,
+);
+
+const googleConfig = () => ({
+  clientId: process.env.GOOGLE_CLIENT_ID,
+  clientSecret: process.env.GOOGLE_CLIENT_SECRET,
+  redirectUri: process.env.GOOGLE_REDIRECT_URI || 'http://localhost:5000/api/customers/google/callback',
+});
+
+const respondWithStore = (res, key) => res.json({ success: true, data: inMemoryStore[key] || [] });
+
+router.get('/services', async (req, res) => {
+  if (isDatabaseReady()) return res.json({ success: true, data: await Service.find({ isActive: true }).lean() });
+  return respondWithStore(res, 'services');
+});
+
+router.get('/services/:id', async (req, res) => {
+  if (isDatabaseReady()) {
+    const service = await Service.findOne({ $or: [{ id: req.params.id }, { name: req.params.id }] }).lean();
+    if (!service) return res.status(404).json({ message: 'Service not found' });
+    return res.json({ success: true, data: service });
+  }
+  const service = inMemoryStore.services.find((item) => item.id === req.params.id || item.name === req.params.id);
+  if (!service) return res.status(404).json({ message: 'Service not found' });
+  return res.json({ success: true, data: service });
+});
+
+router.get('/products', async (req, res) => {
+  if (isDatabaseReady()) return res.json({ success: true, data: await Product.find({ isActive: true }).lean() });
+  return respondWithStore(res, 'products');
+});
+
+router.get('/products/:id', async (req, res) => {
+  if (isDatabaseReady()) {
+    const product = await Product.findOne({ $or: [{ id: req.params.id }, { _id: req.params.id }] }).lean();
+    if (!product) return res.status(404).json({ message: 'Product not found' });
+    return res.json({ success: true, data: product });
+  }
+  const product = inMemoryStore.products.find((item) => item.id === req.params.id || item.name === req.params.id);
+  if (!product) return res.status(404).json({ message: 'Product not found' });
+  return res.json({ success: true, data: product });
+});
+
+router.get('/gallery', async (req, res) => {
+  if (isDatabaseReady()) return res.json({ success: true, data: await Gallery.find({ isActive: true }).lean() });
+  return respondWithStore(res, 'gallery');
+});
+
+router.get('/settings', async (req, res) => {
+  if (isDatabaseReady()) {
+    const settings = await Settings.findOne({ key: 'main' }).lean();
+    return res.json({ success: true, data: settings || {} });
+  }
+  const settings = {
+    ...inMemoryStore.settings,
+    location: String(inMemoryStore.settings.location || 'Atonsu, Kumasi, Ghana').replace(/Atomsu/gi, 'Atonsu'),
+  };
+  settings.googleMapsEmbedUrl = settings.googleMapsEmbedUrl || await resolveGoogleMapsEmbed(settings.googleMapsUrl);
+  inMemoryStore.settings = settings;
+  return res.json({ success: true, data: settings });
+});
+
+router.post('/bookings', customerProtect, actionLimiter, async (req, res) => {
+  const { phone, serviceName, date, time, notes, location, googleLocation, paymentReference, paymentOption } = req.body;
+  const customerName = req.customer.fullName;
+  const email = req.customer.email;
+  const service = inMemoryStore.services.find((item) => item.name === serviceName || item.id === serviceName);
+
+  if (!phone || !service || !date || !time || !paymentReference || !['half', 'full'].includes(paymentOption) || !/^\d{4}-\d{2}-\d{2}$/.test(String(date)) || !['9:00 AM', '10:00 AM', '11:00 AM', '1:00 PM', '2:00 PM', '3:00 PM', '4:00 PM', '5:00 PM'].includes(time)) {
+    return res.status(400).json({ message: 'Please provide all required booking information' });
+  }
+  if (!isPhone(String(phone)) || String(phone).length > 25) return res.status(400).json({ message: 'Phone number is not valid.' });
+  if (!process.env.PAYSTACK_SECRET_KEY) return res.status(503).json({ message: 'Payment service is not configured.' });
+  if (isDatabaseReady() && await Payment.exists({ reference: paymentReference })) return res.status(409).json({ message: 'Payment has already been used.' });
+  let verification;
+  try {
+    const paymentResponse = await fetch(`https://api.paystack.co/transaction/verify/${encodeURIComponent(paymentReference)}`, { headers: { Authorization: `Bearer ${process.env.PAYSTACK_SECRET_KEY}` } });
+    verification = await paymentResponse.json();
+  } catch {
+    return res.status(502).json({ message: 'Unable to verify payment.' });
+  }
+  const expectedAmount = Math.round(Number(service.price) * (paymentOption === 'half' ? 0.5 : 1) * 100);
+  const transaction = verification?.data;
+  if (!verification?.status || transaction?.status !== 'success' || transaction.currency !== 'GHS' || Number(transaction.amount) !== expectedAmount || String(transaction.customer?.email || '').toLowerCase() !== email.toLowerCase()) return res.status(400).json({ message: 'Payment verification failed.' });
+
+  const reference = `ELS-${new Date().getFullYear()}-${String(inMemoryStore.bookings.length + 1).padStart(5, '0')}`;
+  const booking = {
+    id: makeId('booking'),
+    reference,
+    customerName,
+    phone,
+    email,
+    serviceName: service.name,
+    date,
+    time,
+    location: cleanText(location || googleLocation || 'Atonsu, Kumasi, Ghana', 300),
+    googleLocation: cleanText(googleLocation || location || 'Atonsu, Kumasi, Ghana', 300),
+    notes: cleanText(notes, 1000),
+    status: 'Pending',
+    paymentOption,
+    paymentAmount: expectedAmount / 100,
+    createdAt: new Date().toISOString(),
+  };
+
+  if (isDatabaseReady()) {
+    const saved = await Booking.create({ ...booking, customerId: req.customer._id, serviceId: service.id });
+    await Payment.create({ bookingId: saved._id, customerId: req.customer._id, reference: paymentReference, amount: expectedAmount, currency: 'GHS', status: 'Paid' });
+    return res.status(201).json({ success: true, data: saved.toObject() });
+  }
+  inMemoryStore.bookings.unshift(booking);
+  return res.status(201).json({ success: true, data: booking });
+});
+
+router.get('/customers/me/bookings', customerProtect, (req, res) => {
+  if (isDatabaseReady()) return Booking.find({ customerId: req.customer._id }).lean().then((bookings) => res.json({ success: true, data: bookings }));
+  const bookings = inMemoryStore.bookings.filter((booking) => booking.email === req.customer.email);
+  return res.json({ success: true, data: bookings });
+});
+
+router.post('/orders', customerProtect, actionLimiter, async (req, res) => {
+  const { phone, address, region, city, deliveryLocation, googleLocation, notes, paymentReference } = req.body;
+  const items = parseItems(req.body.items);
+  const customerName = req.customer.fullName;
+  const email = req.customer.email;
+
+  if (!phone || !address || !region || !city || !deliveryLocation || !items || !isPhone(String(phone))) {
+    return res.status(400).json({ message: 'Missing order details' });
+  }
+  if (!paymentReference || typeof paymentReference !== 'string' || paymentReference.length > 100) return res.status(400).json({ message: 'Payment reference is required.' });
+
+  const trustedItems = [];
+  for (const item of items) {
+    const product = isDatabaseReady()
+      ? await Product.findOne({ id: item.productId, isActive: true }).lean()
+      : inMemoryStore.products.find((entry) => entry.id === item.productId && entry.isActive !== false);
+    if (!product) return res.status(400).json({ message: 'One or more products are invalid.' });
+    trustedItems.push({ productId: product.id, name: product.name, quantity: item.quantity, price: Number(product.price) });
+  }
+  const total = trustedItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
+  if (inMemoryStore.orders.some((order) => order.paymentReference === paymentReference) || (isDatabaseReady() && await Payment.exists({ reference: paymentReference }))) return res.status(409).json({ message: 'Payment has already been used.' });
+
+  const secretKey = process.env.PAYSTACK_SECRET_KEY;
+  if (!secretKey) return res.status(503).json({ message: 'Payment service is not configured.' });
+  let verification;
+  try {
+    const response = await fetch(`https://api.paystack.co/transaction/verify/${encodeURIComponent(paymentReference)}`, { headers: { Authorization: `Bearer ${secretKey}` } });
+    verification = await response.json();
+  } catch {
+    return res.status(502).json({ message: 'Unable to verify payment.' });
+  }
+  const transaction = verification?.data;
+  if (!verification?.status || transaction?.status !== 'success' || transaction.currency !== 'GHS' || Number(transaction.amount) !== Math.round(total * 100) || String(transaction.customer?.email || '').toLowerCase() !== email.toLowerCase()) {
+    return res.status(400).json({ message: 'Payment verification failed.' });
+  }
+
+  const order = {
+    id: makeId('order'),
+    customerName,
+    email,
+    phone,
+    address: cleanText(address, 300),
+    region: cleanText(region, 80),
+    city: cleanText(city, 100),
+    deliveryLocation: cleanText(deliveryLocation, 40),
+    googleLocation: cleanText(googleLocation || address, 300),
+    notes: cleanText(notes, 1000),
+    items: trustedItems,
+    total,
+    status: 'Pending',
+    paymentStatus: 'Paid',
+    paymentMethod: 'Paystack',
+    paymentReference,
+    createdAt: new Date().toISOString(),
+  };
+
+  if (isDatabaseReady()) {
+    const savedOrder = await Order.create({ ...order, customerId: req.customer._id, subtotal: total, deliveryFee: 0, currency: 'GHS' });
+    await Payment.create({ orderId: savedOrder._id, customerId: req.customer._id, reference: paymentReference, amount: Math.round(total * 100), currency: 'GHS', status: 'Paid' });
+    return res.status(201).json({ success: true, data: savedOrder.toObject() });
+  }
+
+  inMemoryStore.orders.unshift(order);
+  return res.status(201).json({ success: true, data: order });
+});
+
+router.post('/customers/signup', authLimiter, async (req, res) => {
+  const payload = req.body || {};
+  const sanitizedPayload = {
+    fullName: String(payload.fullName ?? '').replace(/[<>]/g, '').trim(),
+    email: String(payload.email ?? '').replace(/[<>]/g, '').trim().toLowerCase(),
+    phone: String(payload.phone ?? '').replace(/[<>]/g, '').trim(),
+    password: String(payload.password ?? '').trim(),
+    city: String(payload.city ?? '').replace(/[<>]/g, '').trim(),
+    address: String(payload.address ?? '').replace(/[<>]/g, '').trim(),
+  };
+
+  const validation = validateCustomerSignup(sanitizedPayload);
+
+  if (!validation.valid) {
+    return res.status(400).json({ success: false, message: validation.errors[0] });
+  }
+
+  const email = sanitizedPayload.email;
+  const existingCustomer = isDatabaseReady()
+    ? await Customer.findOne({ email }).lean()
+    : inMemoryStore.customerAccounts.find((customer) => customer.email === email);
+
+  if (existingCustomer) {
+    return res.status(409).json({ success: false, message: 'A customer with this email already exists.' });
+  }
+
+  const hashedPassword = bcrypt.hashSync(sanitizedPayload.password, 10);
+  const customer = {
+    id: makeId('customer'),
+    fullName: sanitizedPayload.fullName,
+    email,
+    phone: sanitizedPayload.phone,
+    city: sanitizedPayload.city,
+    address: sanitizedPayload.address,
+    password: hashedPassword,
+    createdAt: new Date().toISOString(),
+  };
+
+  if (isDatabaseReady()) {
+    const savedCustomer = await Customer.create({ name: customer.fullName, email: customer.email, phone: customer.phone, city: customer.city, address: customer.address, passwordHash: hashedPassword });
+    return res.status(201).json({ success: true, data: { id: savedCustomer.id, email: savedCustomer.email, fullName: savedCustomer.name } });
+  }
+
+  inMemoryStore.customerAccounts.unshift(customer);
+  inMemoryStore.customers.unshift({
+    id: customer.id,
+    name: customer.fullName,
+    email: customer.email,
+    phone: customer.phone,
+    bookings: 0,
+    orders: 0,
+    registeredAt: customer.createdAt,
+  });
+
+  return res.status(201).json({ success: true, data: { id: customer.id, email: customer.email, fullName: customer.fullName } });
+});
+
+router.post('/customers/signin', authLimiter, async (req, res) => {
+  const payload = req.body || {};
+  const sanitizedPayload = {
+    email: String(payload.email ?? '').replace(/[<>]/g, '').trim().toLowerCase(),
+    password: String(payload.password ?? '').trim(),
+  };
+
+  const validation = validateCustomerCredentials(sanitizedPayload);
+  if (!validation.valid) {
+    return res.status(400).json({ success: false, message: validation.errors[0] });
+  }
+
+  const fullCustomer = isDatabaseReady()
+    ? await Customer.findOne({ email: sanitizedPayload.email }).select('+passwordHash').lean()
+    : inMemoryStore.customerAccounts.find((entry) => entry.email === sanitizedPayload.email);
+  const storedHash = fullCustomer?.password || '$2b$12$invalidinvalidinvalidinvalidinvalidinvalidinvalidinvalidinvalid';
+  const passwordMatches = storedHash ? await bcrypt.compare(sanitizedPayload.password, storedHash) : false;
+
+  if (!passwordMatches) {
+    return res.status(401).json({ success: false, message: 'Invalid email or password.' });
+  }
+
+  const token = createCustomerToken({ id: fullCustomer.id || fullCustomer._id.toString(), email: fullCustomer.email });
+  res.cookie('customerToken', token, { httpOnly: true, secure: process.env.NODE_ENV === 'production', sameSite: 'strict', maxAge: 60 * 60 * 1000 });
+  return res.json({ success: true, customer: { name: fullCustomer.fullName || fullCustomer.name, email: fullCustomer.email } });
+});
+
+router.get('/customers/google', authLimiter, (req, res) => {
+  const { clientId, redirectUri } = googleConfig();
+  if (!clientId) return res.status(503).json({ message: 'Google sign-in is not configured.' });
+  const state = crypto.randomBytes(24).toString('hex');
+  res.cookie('googleOAuthState', state, { httpOnly: true, secure: process.env.NODE_ENV === 'production', sameSite: 'lax', maxAge: 10 * 60 * 1000 });
+  const params = new URLSearchParams({ client_id: clientId, redirect_uri: redirectUri, response_type: 'code', scope: 'openid email profile', state, access_type: 'offline', prompt: 'select_account' });
+  return res.redirect(`https://accounts.google.com/o/oauth2/v2/auth?${params}`);
+});
+
+router.get('/customers/google/callback', async (req, res) => {
+  const { clientId, clientSecret, redirectUri } = googleConfig();
+  if (!clientId || !clientSecret || req.query.state !== req.cookies?.googleOAuthState || !req.query.code) return res.redirect('/signin?google=failed');
+  try {
+    const tokenResponse = await fetch('https://oauth2.googleapis.com/token', { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: new URLSearchParams({ code: req.query.code, client_id: clientId, client_secret: clientSecret, redirect_uri: redirectUri, grant_type: 'authorization_code' }) });
+    const tokenPayload = await tokenResponse.json();
+    if (!tokenResponse.ok || !tokenPayload.access_token) throw new Error('Google token exchange failed');
+    const profileResponse = await fetch('https://openidconnect.googleapis.com/v1/userinfo', { headers: { Authorization: `Bearer ${tokenPayload.access_token}` } });
+    const profile = await profileResponse.json();
+    if (!profileResponse.ok || !profile.sub || !profile.email || profile.email_verified !== true) throw new Error('Google profile validation failed');
+    let customer;
+    if (isDatabaseReady()) {
+      customer = await Customer.findOne({ $or: [{ googleId: profile.sub }, { email: profile.email.toLowerCase() }] });
+      if (customer) {
+        customer.name = cleanText(profile.name || profile.email, 120);
+        customer.googleId = profile.sub;
+        customer.authProvider = 'google';
+        await customer.save();
+      } else {
+        customer = await Customer.create({ name: cleanText(profile.name || profile.email, 120), email: profile.email.toLowerCase(), phone: 'Google account', googleId: profile.sub, authProvider: 'google' });
+      }
+    } else {
+      customer = inMemoryStore.customerAccounts.find((entry) => entry.googleId === profile.sub);
+      if (!customer) {
+        customer = { id: makeId('customer'), fullName: cleanText(profile.name || profile.email, 120), name: cleanText(profile.name || profile.email, 120), email: profile.email.toLowerCase(), phone: 'Google account', googleId: profile.sub, authProvider: 'google', createdAt: new Date().toISOString() };
+        inMemoryStore.customerAccounts.unshift(customer);
+      }
+    }
+    const token = createCustomerToken({ id: customer.id || customer._id.toString(), email: customer.email });
+    res.clearCookie('googleOAuthState');
+    res.cookie('customerToken', token, { httpOnly: true, secure: process.env.NODE_ENV === 'production', sameSite: 'strict', maxAge: 60 * 60 * 1000 });
+    return res.redirect(`${process.env.CLIENT_URL || 'http://localhost:5173'}/account/orders`);
+  } catch (error) {
+    console.error('Google sign-in failed:', error.message);
+    return res.redirect(`${process.env.CLIENT_URL || 'http://localhost:5173'}/signin?google=failed`);
+  }
+});
+
+router.get('/customers/me', customerProtect, (req, res) => res.json({ success: true, customer: { id: req.customer.id, name: req.customer.fullName, email: req.customer.email } }));
+
+router.post('/customers/logout', (req, res) => {
+  res.clearCookie('customerToken', { httpOnly: true, secure: process.env.NODE_ENV === 'production', sameSite: 'strict' });
+  return res.json({ success: true });
+});
+
+router.get('/customers/me/orders', customerProtect, (req, res) => {
+  if (isDatabaseReady()) return Order.find({ customerId: req.customer._id }).lean().then((orders) => res.json({ success: true, data: orders }));
+  const orders = inMemoryStore.orders.filter((order) => order.email === req.customer.email);
+  return res.json({ success: true, data: orders });
+});
+
+router.get('/payments/verify/:reference', customerProtect, async (req, res) => {
+  const reference = req.params.reference;
+  const secretKey = process.env.PAYSTACK_SECRET_KEY;
+
+  if (!reference) {
+    return res.status(400).json({ success: false, message: 'Payment reference is required.' });
+  }
+
+  if (!secretKey) {
+    return res.status(400).json({ success: false, message: 'Paystack secret key is not configured.' });
+  }
+
+  try {
+    const response = await fetch(`https://api.paystack.co/transaction/verify/${encodeURIComponent(reference)}`, {
+      headers: {
+        Authorization: `Bearer ${secretKey}`,
+        'Content-Type': 'application/json',
+      },
+    });
+
+    const payload = await response.json();
+
+    if (!payload.status || payload.data?.status !== 'success' || String(payload.data?.customer?.email || '').toLowerCase() !== req.customer.email.toLowerCase()) {
+      return res.status(400).json({ success: false, message: 'Payment verification failed.' });
+    }
+
+    return res.json({ success: true, data: payload.data });
+  } catch (error) {
+    console.error('Paystack verification error:', error);
+    return res.status(500).json({ success: false, message: 'Unable to verify payment.' });
+  }
+});
+
+router.post('/contact', (req, res) => {
+  const { name, email, phone, message } = req.body;
+
+  if (!name || !email || !phone || !message) {
+    return res.status(400).json({ message: 'Please complete all contact fields' });
+  }
+
+  const messageEntry = {
+    id: makeId('contact'),
+    name,
+    email,
+    phone,
+    message,
+    createdAt: new Date().toISOString(),
+  };
+
+  inMemoryStore.contactMessages.unshift(messageEntry);
+  return res.status(201).json({ success: true, data: messageEntry });
+});
+
+router.post('/auth/login', authLimiter, async (req, res) => {
+  const { email, password } = req.body;
+  const admin = inMemoryStore.admin;
+
+  if (!admin) return res.status(503).json({ message: 'Administrator authentication is not configured.' });
+
+  if (!email || !password) {
+    return res.status(400).json({ message: 'Email and password are required' });
+  }
+
+  const passwordMatches = await bcrypt.compare(password, admin.password);
+  if (email !== admin.email || !passwordMatches) {
+    return res.status(401).json({ message: 'Invalid credentials' });
+  }
+
+  const token = createAdminToken(admin);
+  res.cookie('token', token, { httpOnly: true, secure: process.env.NODE_ENV === 'production', sameSite: 'strict', maxAge: 60 * 60 * 1000 });
+
+  return res.json({ success: true, token, admin: { name: admin.name, email: admin.email } });
+});
+
+router.post('/auth/logout', (req, res) => {
+  res.clearCookie('token');
+  return res.json({ success: true, message: 'Logged out' });
+});
+
+router.get('/auth/me', protect, (req, res) => {
+  return res.json({ success: true, admin: { name: req.admin.name, email: req.admin.email } });
+});
+
+module.exports = router;
