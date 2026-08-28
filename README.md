@@ -40,3 +40,4 @@ If Windows Firewall prompts for Node.js access, allow it on private networks. Ke
 ## Notes
 
 This project ships with a sample in-memory data layer for local demonstration purposes. Production requires configured persistent storage, secrets, an admin email, and a bcrypt admin password hash. The server refuses production startup when required security configuration is absent.
+# elsbraids
