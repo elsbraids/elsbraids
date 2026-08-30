@@ -1,5 +1,6 @@
 const express = require('express');
 const router = express.Router();
+const { ObjectId } = require('mongodb');
 const { protect } = require('../middleware/auth');
 const { inMemoryStore } = require('../data/sampleData');
 const { makeId, resolveGoogleMapsEmbed } = require('../data/sampleData');
@@ -233,9 +234,11 @@ router.put('/settings', async (req, res) => {
     }
   }
   if (isDatabaseReady()) {
-    const settings = await Settings.findOneAndUpdate({ key: 'main' }, { $set: nextSettings }, { upsert: true, new: true, setDefaultsOnInsert: true }).lean();
+    const existingSettings = await Settings.findOne().select('_id').lean();
+    const id = existingSettings?._id || new ObjectId();
+    const settings = await Settings.findOneAndUpdate({ _id: new ObjectId(id) }, { $set: nextSettings }, { upsert: true, new: true, setDefaultsOnInsert: true }).lean();
     settings.googleMapsEmbedUrl = await resolveGoogleMapsEmbed(settings.googleMapsUrl);
-    await Settings.updateOne({ key: 'main' }, { $set: { googleMapsEmbedUrl: settings.googleMapsEmbedUrl } });
+    await Settings.updateOne({ _id: new ObjectId(id) }, { $set: { googleMapsEmbedUrl: settings.googleMapsEmbedUrl } });
     return res.json({ success: true, data: settings });
   }
   inMemoryStore.settings = { ...inMemoryStore.settings, ...nextSettings };
