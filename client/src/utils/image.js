@@ -7,6 +7,10 @@ export const optimizeImageUrl = (url, width = 800) => {
 };
 
 export const handleImageError = (event, fallback = imageFallback) => {
+  console.warn('[image] Failed to load image; using fallback', {
+    source: event.currentTarget.src,
+    fallback,
+  });
   event.currentTarget.onerror = null;
   event.currentTarget.src = fallback;
 };

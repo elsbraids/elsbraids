@@ -131,6 +131,14 @@ function AdminDashboardPage() {
   const [errorMessage, setErrorMessage] = useState("");
 
   useEffect(() => {
+    console.log("[settings] Admin render image fields", {
+      logo: websiteForm.logo,
+      favicon: websiteForm.favicon,
+      heroImages: websiteForm.heroImages,
+    });
+  }, [websiteForm.logo, websiteForm.favicon, websiteForm.heroImages]);
+
+  useEffect(() => {
     if (document.querySelector('script[src="https://upload-widget.cloudinary.com/global/all.js"]')) return;
     const script = document.createElement("script");
     script.src = "https://upload-widget.cloudinary.com/global/all.js";
@@ -532,19 +540,31 @@ function AdminDashboardPage() {
   const saveWebsite = async (event) => {
     event.preventDefault();
     setSavingWebsite(true);
+    const payload = {
+      ...websiteForm,
+      location: websiteForm.location.replace(/Atomsu/gi, "Atonsu"),
+      socials: websiteForm.socials,
+    };
+    console.log("[settings] Sending PUT /api/admin/settings", {
+      imageFields: {
+        logo: payload.logo,
+        favicon: payload.favicon,
+        heroImages: payload.heroImages,
+      },
+    });
     try {
       const response = await axios.put(
         "/api/admin/settings",
-        {
-          ...websiteForm,
-          location: websiteForm.location.replace(/Atomsu/gi, "Atonsu"),
-          socials: websiteForm.socials,
-        },
+        payload,
         authConfig(),
       );
+      console.log("[settings] PUT response received", response.data.data);
       setSettings(response.data.data);
       setWebsiteForm((form) => ({
         ...form,
+        logo: response.data.data?.logo || form.logo,
+        favicon: response.data.data?.favicon || form.favicon,
+        heroImages: response.data.data?.heroImages || form.heroImages,
         location: String(response.data.data.location || "").replace(
           /Atomsu/gi,
           "Atonsu",
@@ -591,13 +611,28 @@ function AdminDashboardPage() {
           return;
         }
         if (result.event !== "success") return;
-        const secureUrl = result.info.secure_url;
-        setWebsiteForm((form) => ({
+        const secureUrl = result.info?.secure_url;
+        if (!secureUrl || !secureUrl.startsWith("https://res.cloudinary.com/")) {
+          console.error("[cloudinary] Invalid secure_url", result.info);
+          alert("Cloudinary returned an invalid image URL.");
+          return;
+        }
+        console.log("[cloudinary] secure_url received", secureUrl);
+        setWebsiteForm((form) => {
+          const nextForm = {
           ...form,
           [field]: field === "heroImages"
             ? [...form.heroImages, secureUrl]
             : secureUrl,
-        }));
+          };
+          console.log("[settings] Image state updated", {
+            field,
+            logo: nextForm.logo,
+            favicon: nextForm.favicon,
+            heroImages: nextForm.heroImages,
+          });
+          return nextForm;
+        });
       },
     );
   };
