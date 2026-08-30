@@ -4,19 +4,20 @@ import { useEffect, useState } from 'react';
 import axios from 'axios';
 
 const heroImage = '/hero_braids.jpg';
-const heroSlides = [{ image: heroImage, alt: "Professional braiding at EL'S BRAIDS salon" }];
 
 const serviceFallbackImage = heroImage;
 
 function HomePage() {
   const [services, setServices] = useState([]);
   const [settings, setSettings] = useState({});
+  const [settingsLoading, setSettingsLoading] = useState(true);
   const [activeHeroSlide, setActiveHeroSlide] = useState(0);
   const [touchImageId, setTouchImageId] = useState(null);
   const uploadedHeroImages = settings.heroImages?.filter(Boolean) || [];
-  const displayedHeroSlides = uploadedHeroImages.length > 0
-    ? uploadedHeroImages.map((image, index) => ({ image, alt: `EL'S BRAIDS hero image ${index + 1}` }))
-    : heroSlides;
+  const displayedHeroSlides = uploadedHeroImages.map((image, index) => ({
+    image,
+    alt: `EL'S BRAIDS hero image ${index + 1}`,
+  }));
 
   const showPreviousHero = () => {
     setActiveHeroSlide((current) => (current - 1 + displayedHeroSlides.length) % displayedHeroSlides.length);
@@ -42,6 +43,8 @@ function HomePage() {
         setSettings(settingsRes.data.data || {});
       } catch (error) {
         console.error('Failed to load home data', error);
+      } finally {
+        setSettingsLoading(false);
       }
     };
     fetchData();
@@ -51,7 +54,9 @@ function HomePage() {
     <div>
       {/* ── HERO ── */}
       <section className="relative isolate min-h-[680px] overflow-hidden sm:min-h-[720px]">
-        {displayedHeroSlides.map((slide, index) => (
+        {settingsLoading ? (
+          <div className="absolute inset-0 -z-20 animate-pulse bg-[#eadde2]" aria-label="Loading hero image" />
+        ) : displayedHeroSlides.map((slide, index) => (
           <img
             key={slide.image}
             src={slide.image}
@@ -59,7 +64,7 @@ function HomePage() {
             aria-hidden={index !== activeHeroSlide}
             onError={(event) => {
               event.currentTarget.onerror = null;
-              event.currentTarget.src = heroImage;
+              event.currentTarget.style.display = 'none';
             }}
             className={`absolute inset-0 -z-20 h-full w-full object-cover object-center transition-opacity duration-1000 ${index === activeHeroSlide ? 'opacity-100' : 'opacity-0'}`}
           />
@@ -103,7 +108,7 @@ function HomePage() {
           </div>
         </div>
 
-        <div className="absolute bottom-8 right-4 flex items-center gap-3 sm:right-8">
+        {displayedHeroSlides.length > 0 && <div className="absolute bottom-8 right-4 flex items-center gap-3 sm:right-8">
           <button type="button" onClick={showPreviousHero} aria-label="Previous hero image" className="rounded-full border border-white/60 bg-black/20 p-3 text-white backdrop-blur-sm transition hover:bg-white hover:text-[#5b2b45]">
             <ArrowLeft size={18} />
           </button>
@@ -122,7 +127,7 @@ function HomePage() {
           <button type="button" onClick={showNextHero} aria-label="Next hero image" className="rounded-full border border-white/60 bg-black/20 p-3 text-white backdrop-blur-sm transition hover:bg-white hover:text-[#5b2b45]">
             <ArrowRight size={18} />
           </button>
-        </div>
+        </div>}
       </section>
 
       {/* ── SERVICES GRID ── */}
