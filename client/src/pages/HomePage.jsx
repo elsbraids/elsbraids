@@ -90,29 +90,29 @@ function HomePage() {
           </div>
           
           <div className="mt-auto w-full max-w-2xl text-white">
-            <h1 className="font-['Twinkle_Star',cursive] text-7xl leading-[0.8] drop-shadow-xl sm:text-8xl lg:text-[9rem]">
+            <h1 className="font-['Twinkle_Star',cursive] text-6xl leading-[0.8] drop-shadow-xl sm:text-7xl lg:text-[7.5rem]">
               EL'S <span className="block">BRAIDS</span>
             </h1>
-            <p className="mt-5 text-xl italic leading-snug text-[#f8dbe8] drop-shadow-md sm:mt-6 sm:text-2xl">
+            <p className="mt-4 text-lg italic leading-snug text-[#f8dbe8] drop-shadow-md sm:mt-5 sm:text-xl">
               Beautiful Hair. Beautiful You.
             </p>
-            <div className="mt-5 flex items-center gap-2 text-sm text-white/90 drop-shadow-md sm:text-base">
+            <div className="mt-4 flex items-center gap-2 text-sm text-white/90 drop-shadow-md sm:text-base">
               <MapPin size={16} className="shrink-0 text-[#f8dbe8]" />
               <span>{String(settings.location || 'Atonsu, Kumasi, Ghana').replace(/Atomsu/gi, 'Atonsu')}</span>
             </div>
           </div>
 
-          <div className="mt-10 w-full max-w-2xl">
-            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:gap-5">
+          <div className="mt-12 w-full">
+            <div className="flex flex-col items-start gap-4 sm:flex-row sm:gap-5">
               <Link
                 to="/book"
-                className="inline-flex w-full items-center justify-center rounded-full bg-white px-8 py-4 text-sm font-bold tracking-wide text-[#5b2b45] shadow-xl transition hover:scale-105 hover:bg-[#f8dbe8] sm:w-auto"
+                className="inline-flex items-center justify-center rounded-full bg-white px-8 py-3.5 text-sm font-bold tracking-wide text-[#5b2b45] shadow-xl transition hover:scale-105 hover:bg-[#f8dbe8]"
               >
                 BOOK NOW
               </Link>
               <Link
                 to="/shop"
-                className="inline-flex w-full items-center justify-center rounded-full border border-white/60 bg-white/10 px-8 py-4 text-sm font-bold tracking-wide text-white shadow-xl backdrop-blur-md transition hover:bg-white/20 sm:w-auto"
+                className="inline-flex items-center justify-center rounded-full border border-white/60 bg-white/10 px-8 py-3.5 text-sm font-bold tracking-wide text-white shadow-xl backdrop-blur-md transition hover:bg-white/20"
               >
                 SHOP PRODUCTS
               </Link>
