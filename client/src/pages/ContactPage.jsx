@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import axios from 'axios';
+import { handleImageError, optimizeImageUrl } from '../utils/image';
 
 function ContactPage() {
   const [form, setForm] = useState({ name: '', email: '', phone: '', message: '' });
@@ -39,11 +40,10 @@ function ContactPage() {
       {/* ── HERO ── */}
       <section className="relative overflow-hidden" style={{ minHeight: '260px' }}>
         {loading ? <div className="absolute inset-0 animate-pulse bg-[#eadde2]" aria-label="Loading contact image" /> : <img
-          src={settings.heroImages?.find(Boolean) || '/hero_braids.jpg'}
+          src={optimizeImageUrl(settings.heroImages?.find(Boolean) || '/hero_braids.jpg', 1600)}
           alt="Contact EL'S BRAIDS beauty salon"
           onError={(event) => {
-            event.currentTarget.onerror = null;
-            event.currentTarget.src = '/hero_braids.jpg';
+            handleImageError(event)
           }}
           className="absolute inset-0 h-full w-full object-cover object-center"
         />}

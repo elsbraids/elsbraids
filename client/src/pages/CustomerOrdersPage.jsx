@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import axios from 'axios';
 import { Link, useNavigate } from 'react-router-dom';
 import { User, Package } from 'lucide-react';
+import { handleImageError, optimizeImageUrl } from '../utils/image';
 
 function CustomerOrdersPage() {
   const [orders, setOrders] = useState([]);
@@ -30,9 +31,9 @@ function CustomerOrdersPage() {
       {/* ── HERO ── */}
       <section className="relative overflow-hidden" style={{ minHeight: '260px' }}>
         <img
-          src={heroImage}
+          src={optimizeImageUrl(heroImage, 1600)}
           alt="Your EL'S BRAIDS account"
-          onError={(e) => { e.currentTarget.onerror = null; e.currentTarget.src = '/hero_braids.jpg'; }}
+          onError={(event) => handleImageError(event)}
           className="absolute inset-0 h-full w-full object-cover object-center"
         />
         <div className="absolute inset-0 bg-gradient-to-b from-black/60 via-black/50 to-[#f9efef]" />

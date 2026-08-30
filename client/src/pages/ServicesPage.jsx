@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import axios from 'axios';
 import { Link } from 'react-router-dom';
 import { Clock3, ArrowRight } from 'lucide-react';
+import { handleImageError, optimizeImageUrl } from '../utils/image';
 
 const fallbackImage = '/hero_braids.jpg';
 
@@ -37,7 +38,7 @@ function ServicesPage() {
     <div>
       {/* ── HERO ── */}
       <section className="relative overflow-hidden" style={{ minHeight: '260px' }}>
-        {loading ? <div className="absolute inset-0 animate-pulse bg-[#eadde2]" aria-label="Loading services image" /> : <img src={heroImage} alt="EL'S BRAIDS professional braiding services" onError={(event) => { event.currentTarget.onerror = null; event.currentTarget.style.display = 'none'; }} className="absolute inset-0 h-full w-full object-cover object-center" />}
+        {loading ? <div className="absolute inset-0 animate-pulse bg-[#eadde2]" aria-label="Loading services image" /> : <img src={optimizeImageUrl(heroImage, 1600)} alt="EL'S BRAIDS professional braiding services" onError={(event) => handleImageError(event, fallbackImage)} className="absolute inset-0 h-full w-full object-cover object-center" />}
         <div className="absolute inset-0 bg-gradient-to-b from-black/60 via-black/50 to-[#f9efef]" />
         <div className="relative mx-auto flex min-h-[260px] max-w-7xl items-end px-4 pb-8 sm:px-6 lg:px-8">
           <div className="text-white">
@@ -65,8 +66,8 @@ function ServicesPage() {
               style={{ minHeight: '340px' }}
             >
               <div className="relative h-[340px] cursor-pointer overflow-hidden rounded-[1.5rem]" onClick={() => setTouchImageId((current) => current === service.id ? null : service.id)}>
-                <img src={bgImg} alt={service.name} onError={(event) => { event.currentTarget.onerror = null; event.currentTarget.src = fallbackImage; }} className={`absolute inset-0 h-full w-full object-cover transition-transform duration-700 ease-out [@media(hover:hover)]:group-hover:-translate-x-full ${touchImageId === service.id ? '-translate-x-full' : ''}`} />
-                <img src={alternateImg} alt={`${service.name} alternate style`} onError={(event) => { event.currentTarget.onerror = null; event.currentTarget.src = fallbackImage; }} className={`absolute inset-0 h-full w-full translate-x-full object-cover transition-transform duration-700 ease-out [@media(hover:hover)]:group-hover:translate-x-0 ${touchImageId === service.id ? 'translate-x-0' : ''}`} />
+                <img src={optimizeImageUrl(bgImg)} alt={service.name} onError={(event) => handleImageError(event, fallbackImage)} loading="lazy" className={`absolute inset-0 h-full w-full object-cover transition-transform duration-700 ease-out [@media(hover:hover)]:group-hover:-translate-x-full ${touchImageId === service.id ? '-translate-x-full' : ''}`} />
+                <img src={optimizeImageUrl(alternateImg)} alt={`${service.name} alternate style`} onError={(event) => handleImageError(event, fallbackImage)} loading="lazy" className={`absolute inset-0 h-full w-full translate-x-full object-cover transition-transform duration-700 ease-out [@media(hover:hover)]:group-hover:translate-x-0 ${touchImageId === service.id ? 'translate-x-0' : ''}`} />
                 <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent" />
                 <div className="absolute inset-x-0 bottom-0 p-5 text-white">
                   <h2 className="text-2xl font-bold leading-tight drop-shadow">{service.name}</h2>

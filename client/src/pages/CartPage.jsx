@@ -3,6 +3,7 @@ import axios from 'axios';
 import { Link } from 'react-router-dom';
 import { Minus, Plus, Trash2, ShoppingBag } from 'lucide-react';
 import { useCart } from '../context/CartContext';
+import { handleImageError, optimizeImageUrl } from '../utils/image';
 
 function CartPage() {
   const { cart, removeFromCart, updateQuantity, subtotal } = useCart();
@@ -20,9 +21,9 @@ function CartPage() {
       {/* ── HERO ── */}
       <section className="relative overflow-hidden" style={{ minHeight: '260px' }}>
         {settingsLoading ? <div className="absolute inset-0 animate-pulse bg-[#eadde2]" aria-label="Loading cart image" /> : <img
-          src={heroImage}
+          src={optimizeImageUrl(heroImage, 1600)}
           alt="Your shopping cart at EL'S BRAIDS"
-          onError={(e) => { e.currentTarget.onerror = null; e.currentTarget.src = '/hero_braids.jpg'; }}
+          onError={(event) => handleImageError(event)}
           className="absolute inset-0 h-full w-full object-cover object-center"
         />}
         <div className="absolute inset-0 bg-gradient-to-b from-black/60 via-black/50 to-[#f9efef]" />
@@ -47,7 +48,7 @@ function CartPage() {
               </div>
             ) : cart.map((item) => (
               <div key={item.id} className="relative grid min-w-0 grid-cols-[88px_minmax(0,1fr)] gap-4 rounded-[1.5rem] border border-[#ead4dd] bg-[#fffafc] p-4 shadow-soft sm:grid-cols-[112px_minmax(0,1fr)_auto] sm:items-center">
-                <img src={item.images?.[0]} alt={item.name} className="h-[88px] w-[88px] rounded-xl object-cover sm:h-28 sm:w-28" />
+                <img src={optimizeImageUrl(item.images?.[0] || '/hero_braids.jpg')} alt={item.name} onError={(event) => handleImageError(event)} loading="lazy" className="h-[88px] w-[88px] rounded-xl object-cover sm:h-28 sm:w-28" />
                 <div className="min-w-0 pr-8 sm:pr-0">
                   <h3 className="truncate text-lg font-semibold text-[#5b2b45] sm:text-xl">{item.name}</h3>
                   <p className="mt-1 text-sm text-[#5f4253]">GHC {item.price}</p>

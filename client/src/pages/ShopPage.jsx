@@ -3,6 +3,7 @@ import axios from 'axios';
 import { Link } from 'react-router-dom';
 import { ShoppingBag, ArrowRight } from 'lucide-react';
 import { useCart } from '../context/CartContext';
+import { handleImageError, optimizeImageUrl } from '../utils/image';
 
 const fallbackImage = '/hero_braids.jpg';
 
@@ -40,8 +41,9 @@ function ShopPage() {
       {/* ── HERO ── */}
       <section className="relative overflow-hidden" style={{ minHeight: '260px' }}>
         {settingsLoading ? <div className="absolute inset-0 animate-pulse bg-[#eadde2]" aria-label="Loading shop image" /> : <img
-          src={heroImage}
+          src={optimizeImageUrl(heroImage, 1600)}
           alt="African beauty & hair care products at EL'S BRAIDS shop"
+          onError={(event) => handleImageError(event, fallbackImage)}
           className="absolute inset-0 h-full w-full object-cover object-center"
         />}
         <div className="absolute inset-0 bg-gradient-to-b from-black/60 via-black/50 to-[#f9efef]" />
@@ -73,8 +75,10 @@ function ShopPage() {
             >
               {/* Background image */}
               <img
-                src={bgImg}
+                src={optimizeImageUrl(bgImg)}
                 alt={product.name}
+                onError={(event) => handleImageError(event, fallbackImage)}
+                loading="lazy"
                 className="absolute inset-0 h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
               />
               {/* Gradient overlay — text always readable */}

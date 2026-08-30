@@ -26,6 +26,7 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
+import { handleImageError, optimizeImageUrl } from "../utils/image";
 
 const uniqueCatalogItems = (items, key) => {
   const seen = new Set();
@@ -1023,7 +1024,7 @@ function AdminDashboardPage() {
             <div className="grid gap-3 sm:grid-cols-2">
               {products.map((item) => (
                 <div key={item.id} className="overflow-hidden rounded-xl border border-[#ead4dd] bg-white">
-                  {item.images?.[0] && <img src={item.images[0]} alt={item.name} className="h-28 w-full object-cover" />}
+                  {item.images?.[0] && <img src={optimizeImageUrl(item.images[0])} alt={item.name} onError={(event) => handleImageError(event)} loading="lazy" className="h-28 w-full object-cover" />}
                   <div className="p-3"><div className="flex items-start justify-between gap-2"><span className="font-semibold text-[#5b2b45]">{item.name}</span><span className={`shrink-0 text-xs font-semibold ${item.stock < 10 ? "text-amber-700" : "text-green-700"}`}>{item.stock} left</span></div><p className="mt-1 text-xs text-[#7a3855]">{item.category} · GHC {item.price}</p><p className="mt-2 line-clamp-2 text-sm leading-5 text-[#5f4253]">{item.description || "No description added."}</p><div className="mt-3 flex gap-3"><button type="button" onClick={() => openEditProductForm(item)} className="text-xs font-semibold text-[#7a3855] underline">Edit</button><button type="button" onClick={() => deleteProduct(item)} className="text-xs font-semibold text-red-700 underline">Delete</button></div></div>
                 </div>
               ))}
@@ -1163,8 +1164,10 @@ function AdminDashboardPage() {
                 className="overflow-hidden rounded-xl border border-[#ead4dd] bg-white"
               >
                 <img
-                  src={item.image}
+                  src={optimizeImageUrl(item.image)}
                   alt={item.title}
+                  onError={(event) => handleImageError(event)}
+                  loading="lazy"
                   className="h-40 w-full object-cover"
                 />
                 <div className="flex items-center justify-between gap-2 p-3">
@@ -1359,7 +1362,7 @@ function AdminDashboardPage() {
                   <button type="button" onClick={() => openCloudinaryUpload("logo")} className="mt-2 block rounded-lg bg-[#5b2b45] px-3 py-2 text-sm font-semibold text-white">Upload with Cloudinary</button>
                   {websiteForm.logo && (
                     <span className="relative mt-3 block w-fit">
-                      <img src={websiteForm.logo} alt="Logo preview" className="h-16 w-16 rounded-full object-cover" />
+                      <img src={optimizeImageUrl(websiteForm.logo)} alt="Logo preview" onError={(event) => handleImageError(event)} loading="lazy" className="h-16 w-16 rounded-full object-cover" />
                       <button type="button" onClick={() => removeWebsiteImage("logo")} className="absolute -right-2 -top-2 rounded-full bg-[#5b2b45] px-1.5 text-xs text-white" aria-label="Remove logo">×</button>
                     </span>
                   )}
@@ -1369,7 +1372,7 @@ function AdminDashboardPage() {
                   <button type="button" onClick={() => openCloudinaryUpload("favicon")} className="mt-2 block rounded-lg bg-[#5b2b45] px-3 py-2 text-sm font-semibold text-white">Upload with Cloudinary</button>
                   {websiteForm.favicon && (
                     <span className="relative mt-3 block w-fit">
-                      <img src={websiteForm.favicon} alt="Favicon preview" className="h-10 w-10 rounded-md object-cover" />
+                      <img src={optimizeImageUrl(websiteForm.favicon)} alt="Favicon preview" onError={(event) => handleImageError(event)} loading="lazy" className="h-10 w-10 rounded-md object-cover" />
                       <button type="button" onClick={() => removeWebsiteImage("favicon")} className="absolute -right-2 -top-2 rounded-full bg-[#5b2b45] px-1.5 text-xs text-white" aria-label="Remove favicon">×</button>
                     </span>
                   )}
@@ -1381,7 +1384,7 @@ function AdminDashboardPage() {
                     <div className="mt-3 grid grid-cols-3 gap-2 sm:grid-cols-5">
                       {websiteForm.heroImages.map((image, index) => (
                         <span key={`${image}-${index}`} className="relative block">
-                          <img src={image} alt={`Hero preview ${index + 1}`} className="h-20 w-full rounded-md object-cover" />
+                          <img src={optimizeImageUrl(image)} alt={`Hero preview ${index + 1}`} onError={(event) => handleImageError(event)} loading="lazy" className="h-20 w-full rounded-md object-cover" />
                           <button type="button" onClick={() => removeWebsiteImage("heroImages", index)} className="absolute -right-1 -top-2 rounded-full bg-[#5b2b45] px-1.5 text-xs text-white" aria-label={`Remove hero image ${index + 1}`}>×</button>
                         </span>
                       ))}

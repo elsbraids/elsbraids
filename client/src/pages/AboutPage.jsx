@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import axios from 'axios';
+import { handleImageError, optimizeImageUrl } from '../utils/image';
 
 function AboutPage() {
   const [settings, setSettings] = useState({});
@@ -16,11 +17,10 @@ function AboutPage() {
       {/* ── HERO ── */}
       <section className="relative overflow-hidden" style={{ minHeight: '260px' }}>
         {loading ? <div className="absolute inset-0 animate-pulse bg-[#eadde2]" aria-label="Loading about image" /> : <img
-          src={heroImage}
+          src={optimizeImageUrl(heroImage, 1600)}
           alt="About EL'S BRAIDS beauty studio"
           onError={(event) => {
-            event.currentTarget.onerror = null;
-            event.currentTarget.src = '/hero_braids.jpg';
+            handleImageError(event)
           }}
           className="absolute inset-0 h-full w-full object-cover object-center"
         />}

@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import axios from 'axios';
 import { Eye, X } from 'lucide-react';
+import { handleImageError, optimizeImageUrl } from '../utils/image';
 
 const categories = ['All', 'Braids', 'Curls', 'Piercing', 'Other'];
 
@@ -43,11 +44,10 @@ function GalleryPage() {
       {/* ── HERO ── */}
       <section className="relative overflow-hidden" style={{ minHeight: '260px' }}>
         {loading ? <div className="absolute inset-0 animate-pulse bg-[#eadde2]" aria-label="Loading gallery image" /> : <img
-          src={fallbackImage}
+          src={optimizeImageUrl(fallbackImage, 1600)}
           alt="EL'S BRAIDS beauty gallery"
           onError={(event) => {
-            event.currentTarget.onerror = null;
-            event.currentTarget.src = '/hero_braids.jpg';
+            handleImageError(event, fallbackImage);
           }}
           className="absolute inset-0 h-full w-full object-cover object-center"
         />}
@@ -78,7 +78,7 @@ function GalleryPage() {
         {!loading && !loadError && <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
           {filtered.map((item) => (
             <div key={item.id} className="group relative min-h-[360px] overflow-hidden rounded-[1.5rem] shadow-lg">
-              <img src={item.image || fallbackImage} alt={item.title} onError={(event) => { event.currentTarget.onerror = null; event.currentTarget.src = fallbackImage; }} className="absolute inset-0 h-full w-full object-cover transition-transform duration-700 group-hover:scale-105" />
+              <img src={optimizeImageUrl(item.image || fallbackImage)} alt={item.title} onError={(event) => handleImageError(event, fallbackImage)} loading="lazy" className="absolute inset-0 h-full w-full object-cover transition-transform duration-700 group-hover:scale-105" />
               <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/35 to-transparent" />
               <div className="absolute inset-x-0 bottom-0 p-5 text-white">
                 <p className="text-xs font-semibold uppercase tracking-[0.2em] text-[#f8dbe8]">{item.category}</p>
@@ -95,7 +95,7 @@ function GalleryPage() {
         {viewingItem && (
           <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/80 p-4" role="dialog" aria-modal="true" aria-label={`${viewingItem.title} enlarged view`} onClick={() => setViewingItem(null)}>
             <div className="relative max-h-full max-w-5xl" onClick={(event) => event.stopPropagation()}>
-              <img src={viewingItem.image || fallbackImage} alt={viewingItem.title} onError={(event) => { event.currentTarget.onerror = null; event.currentTarget.src = fallbackImage; }} className="max-h-[85vh] max-w-full rounded-xl object-contain shadow-2xl" />
+              <img src={optimizeImageUrl(viewingItem.image || fallbackImage)} alt={viewingItem.title} onError={(event) => handleImageError(event, fallbackImage)} loading="lazy" className="max-h-[85vh] max-w-full rounded-xl object-contain shadow-2xl" />
               <button type="button" onClick={() => setViewingItem(null)} aria-label="Close enlarged image" className="absolute right-2 top-2 rounded-full bg-black/70 p-2 text-white transition hover:bg-black"><X size={20} /></button>
             </div>
           </div>

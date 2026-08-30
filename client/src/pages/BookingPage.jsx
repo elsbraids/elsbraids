@@ -21,6 +21,7 @@ import {
   ShieldCheck,
   Map
 } from 'lucide-react';
+import { handleImageError, optimizeImageUrl } from '../utils/image';
 
 const timeSlots = [
   '9:00 AM',
@@ -845,8 +846,10 @@ function BookingPage() {
               {/* Service image preview */}
               <div className="group relative h-48 overflow-hidden rounded-2xl shadow-sm">
                 <img
-                  src={selectedService?.images?.[0] || fallbackImage}
+                  src={optimizeImageUrl(selectedService?.images?.[0] || fallbackImage)}
                   alt={selectedService?.name || "EL'S BRAIDS booking"}
+                  onError={(event) => handleImageError(event)}
+                  loading="lazy"
                   className="h-full w-full object-cover object-center transition-transform duration-700 ease-out group-hover:scale-105"
                 />
                 <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent" />
