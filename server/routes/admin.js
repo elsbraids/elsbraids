@@ -224,8 +224,10 @@ router.put('/settings', async (req, res) => {
       nextSettings[key] = value;
     } else if (key === 'heroImages') {
       if (!Array.isArray(req.body[key]) || req.body[key].length > 10) return res.status(400).json({ message: 'Too many hero images.' });
-      nextSettings[key] = req.body[key].map((value) => parseSafeUrl(value)).filter(Boolean);
-      if (nextSettings[key].length !== req.body[key].length) return res.status(400).json({ message: 'Hero images must use HTTPS URLs.' });
+      nextSettings[key] = req.body[key].map((value) => (
+        typeof value === 'string' && value.startsWith('data:') ? value : parseSafeUrl(value)
+      ));
+      if (nextSettings[key].some((value) => !value)) return res.status(400).json({ message: 'Hero images must be data URIs or HTTPS URLs.' });
     } else if (key === 'socials') {
       if (!req.body[key] || typeof req.body[key] !== 'object') return res.status(400).json({ message: 'Invalid social links.' });
       nextSettings[key] = Object.fromEntries(Object.entries(req.body[key]).map(([name, value]) => [name, value === '#' || value === '' ? value : parseSafeUrl(value)]));
