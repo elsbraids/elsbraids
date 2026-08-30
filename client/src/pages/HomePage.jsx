@@ -82,31 +82,31 @@ function HomePage() {
         {/* deep gradient left-to-right for text legibility */}
         <div className="absolute inset-0 -z-10 bg-[linear-gradient(90deg,rgba(30,8,20,0.92)_0%,rgba(55,18,40,0.72)_45%,rgba(30,8,20,0.18)_100%)]" />
 
-        <div className="mx-auto flex min-h-[680px] max-w-7xl items-center px-4 py-16 sm:min-h-[720px] sm:px-6 lg:px-8">
+        <div className="mx-auto flex min-h-[680px] max-w-7xl items-center px-4 py-20 sm:min-h-[720px] sm:px-6 lg:px-8">
           <div className="max-w-2xl text-white">
-            <p className="text-xs font-semibold uppercase tracking-[0.26em] text-[#f8dbe8]">
+            <p className="text-xs font-semibold uppercase tracking-[0.26em] text-[#f8dbe8] drop-shadow-md sm:text-sm">
               Premium Beauty Studio · Kumasi, Ghana
             </p>
-            <h1 className="mt-4 font-['Twinkle_Star',cursive] text-6xl leading-[0.88] sm:text-7xl lg:text-9xl">
+            <h1 className="mt-3 font-['Twinkle_Star',cursive] text-7xl leading-[0.8] drop-shadow-xl sm:text-8xl lg:text-[9rem]">
               EL'S <span className="block">BRAIDS</span>
             </h1>
-            <p className="mt-6 text-lg italic leading-snug text-[#f8dbe8] sm:text-xl">
+            <p className="mt-5 text-xl italic leading-snug text-[#f8dbe8] drop-shadow-md sm:mt-6 sm:text-2xl">
               Beautiful Hair. Beautiful You.
             </p>
-            <div className="mt-4 flex items-center gap-2 text-sm text-white/80">
-              <MapPin size={15} className="shrink-0 text-[#f8dbe8]" />
+            <div className="mt-5 flex items-center gap-2 text-sm text-white/90 drop-shadow-md sm:text-base">
+              <MapPin size={16} className="shrink-0 text-[#f8dbe8]" />
               <span>{String(settings.location || 'Atonsu, Kumasi, Ghana').replace(/Atomsu/gi, 'Atonsu')}</span>
             </div>
-            <div className="mt-8 flex flex-wrap gap-3">
+            <div className="mt-10 flex flex-col gap-4 sm:flex-row sm:items-center sm:gap-5">
               <Link
                 to="/book"
-                className="rounded-full bg-white px-7 py-3.5 text-sm font-bold text-[#5b2b45] shadow-lg transition hover:bg-[#f8dbe8]"
+                className="inline-flex w-full items-center justify-center rounded-full bg-white px-8 py-4 text-sm font-bold tracking-wide text-[#5b2b45] shadow-xl transition hover:scale-105 hover:bg-[#f8dbe8] sm:w-auto"
               >
                 BOOK NOW
               </Link>
               <Link
                 to="/shop"
-                className="rounded-full border border-white/60 bg-white/10 px-7 py-3.5 text-sm font-bold text-white backdrop-blur-sm transition hover:bg-white/20"
+                className="inline-flex w-full items-center justify-center rounded-full border border-white/60 bg-white/10 px-8 py-4 text-sm font-bold tracking-wide text-white shadow-xl backdrop-blur-md transition hover:bg-white/20 sm:w-auto"
               >
                 SHOP PRODUCTS
               </Link>
