@@ -5,6 +5,24 @@ import { useCart } from '../context/CartContext';
 
 const paystackKey = import.meta.env.VITE_PAYSTACK_PUBLIC_KEY || 'pk_test_xxxxxxxxxxxxxxxxxxxxxxxxxxxxx';
 const checkoutDraftKey = 'elsCheckoutDraft';
+const ghanaRegions = [
+  'Ahafo',
+  'Ashanti',
+  'Bono',
+  'Bono East',
+  'Central',
+  'Eastern',
+  'Greater Accra',
+  'North East',
+  'Northern',
+  'Oti',
+  'Savannah',
+  'Upper East',
+  'Upper West',
+  'Volta',
+  'Western',
+  'Western North',
+];
 
 function PaystackCheckoutPage() {
   const navigate = useNavigate();
@@ -118,7 +136,10 @@ function PaystackCheckoutPage() {
               <option value="Salon pickup">Salon pickup</option>
               <option value="Home delivery">Home delivery</option>
             </select>
-            <input required name="region" value={form.region} onChange={handleChange} placeholder="Region" className="rounded-lg border border-[#ead4dd] bg-white px-4 py-3" />
+            <select required name="region" value={form.region} onChange={handleChange} className="rounded-lg border border-[#ead4dd] bg-white px-4 py-3">
+              <option value="">Select region</option>
+              {ghanaRegions.map((region) => <option key={region} value={region}>{region}</option>)}
+            </select>
             <input required name="city" value={form.city} onChange={handleChange} placeholder="City" className="rounded-lg border border-[#ead4dd] bg-white px-4 py-3" />
             <textarea name="notes" value={form.notes} onChange={handleChange} placeholder="Additional notes" className="min-h-[120px] rounded-lg border border-[#ead4dd] bg-white px-4 py-3 md:col-span-2" />
           </div>

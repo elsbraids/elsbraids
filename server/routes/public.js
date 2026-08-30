@@ -1,4 +1,5 @@
 const express = require('express');
+const mongoose = require('mongoose');
 const router = express.Router();
 const { Service, Gallery, Settings } = require('../models');
 const { inMemoryStore } = require('../data/sampleData');
@@ -61,7 +62,10 @@ router.get('/products', async (req, res) => {
 
 router.get('/products/:id', async (req, res) => {
   if (isDatabaseReady()) {
-    const product = await Product.findOne({ $or: [{ id: req.params.id }, { _id: req.params.id }] }).lean();
+    const productQuery = mongoose.isValidObjectId(req.params.id)
+      ? { $or: [{ id: req.params.id }, { _id: req.params.id }] }
+      : { id: req.params.id };
+    const product = await Product.findOne(productQuery).lean();
     if (!product) return res.status(404).json({ message: 'Product not found' });
     return res.json({ success: true, data: product });
   }
