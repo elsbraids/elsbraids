@@ -35,15 +35,7 @@ const timeSlots = [
 
 const bookingDraftKey = 'elsBookingDraft';
 
-// Fallback images matching El's Braids styling
-const SERVICE_FALLBACK_IMAGES = [
-  'https://images.unsplash.com/photo-1560869713-7d0a29430803?auto=format&fit=crop&w=800&q=80',
-  'https://images.unsplash.com/photo-1595476108010-b4d1f102b1b1?auto=format&fit=crop&w=800&q=80',
-  'https://images.unsplash.com/photo-1522337360788-8b13dee7a37e?auto=format&fit=crop&w=800&q=80',
-  'https://images.unsplash.com/photo-1580618672591-eb180b1a973f?auto=format&fit=crop&w=800&q=80',
-  'https://images.unsplash.com/photo-1562322140-8baeececf3df?auto=format&fit=crop&w=800&q=80',
-  'https://images.unsplash.com/photo-1521590832167-7e5d18d02b3c?auto=format&fit=crop&w=800&q=80',
-];
+const fallbackImage = '/hero_braids.jpg';
 
 function BookingPage() {
   const [searchParams] = useSearchParams();
@@ -847,7 +839,7 @@ function BookingPage() {
               {/* Service image preview */}
               <div className="group relative h-48 overflow-hidden rounded-2xl shadow-sm">
                 <img
-                  src={selectedService?.images?.[0] || SERVICE_FALLBACK_IMAGES[0]}
+                  src={selectedService?.images?.[0] || fallbackImage}
                   alt={selectedService?.name || "EL'S BRAIDS booking"}
                   className="h-full w-full object-cover object-center transition-transform duration-700 ease-out group-hover:scale-105"
                 />

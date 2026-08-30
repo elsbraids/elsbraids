@@ -4,29 +4,9 @@ import { useEffect, useState } from 'react';
 import axios from 'axios';
 
 const heroImage = '/hero_braids.jpg';
-const heroSlides = [
-  { image: heroImage, alt: "Professional braiding at EL'S BRAIDS salon" },
-  // Woman with stunning long box braids — Oladimeji Odunsi on Unsplash
-  { image: 'https://images.unsplash.com/photo-1560869713-7d0a29430803?auto=format&fit=crop&w=1600&q=85', alt: 'Woman with beautiful long box braids' },
-  // Braiding hands close-up in a salon — Irene Strong on Unsplash
-  { image: 'https://images.unsplash.com/photo-1522337360788-8b13dee7a37e?auto=format&fit=crop&w=1600&q=85', alt: 'Skilled braiding at EL\'S BRAIDS studio' },
-];
+const heroSlides = [{ image: heroImage, alt: "Professional braiding at EL'S BRAIDS salon" }];
 
-// Braiding & hair care specific images for service cards
-const SERVICE_FALLBACK_IMAGES = [
-  // Box braids
-  'https://images.unsplash.com/photo-1560869713-7d0a29430803?auto=format&fit=crop&w=800&q=80',
-  // Cornrows / neat braids
-  'https://images.unsplash.com/photo-1595476108010-b4d1f102b1b1?auto=format&fit=crop&w=800&q=80',
-  // Natural hair salon styling
-  'https://images.unsplash.com/photo-1522337360788-8b13dee7a37e?auto=format&fit=crop&w=800&q=80',
-  // Goddess locs / faux locs
-  'https://images.unsplash.com/photo-1580618672591-eb180b1a973f?auto=format&fit=crop&w=800&q=80',
-  // Hair treatment / moisturizing
-  'https://images.unsplash.com/photo-1562322140-8baeececf3df?auto=format&fit=crop&w=800&q=80',
-  // Salon chair & styling
-  'https://images.unsplash.com/photo-1521590832167-7e5d18d02b3c?auto=format&fit=crop&w=800&q=80',
-];
+const serviceFallbackImage = heroImage;
 
 function HomePage() {
   const [services, setServices] = useState([]);
@@ -150,8 +130,8 @@ function HomePage() {
 
         <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
           {services.map((service, idx) => {
-            const bgImg = service.images?.[0] || SERVICE_FALLBACK_IMAGES[idx % SERVICE_FALLBACK_IMAGES.length];
-            const alternateImg = service.images?.[1] || SERVICE_FALLBACK_IMAGES[(idx + 1) % SERVICE_FALLBACK_IMAGES.length];
+            const bgImg = service.images?.[0] || serviceFallbackImage;
+            const alternateImg = service.images?.[1] || bgImg;
             const cardContent = (
               <div className="absolute inset-x-0 bottom-0 p-5 text-white">
                 <h3 className="text-2xl font-bold leading-tight drop-shadow">{service.name}</h3>

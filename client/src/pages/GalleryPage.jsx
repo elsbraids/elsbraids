@@ -44,7 +44,7 @@ function GalleryPage() {
       <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
         {filtered.map((item) => (
           <div key={item.id} className="group relative min-h-[360px] overflow-hidden rounded-[1.5rem] shadow-lg">
-            <img src={item.image} alt={item.title} className="absolute inset-0 h-full w-full object-cover transition-transform duration-700 group-hover:scale-105" />
+            <img src={item.image || '/hero_braids.jpg'} alt={item.title} className="absolute inset-0 h-full w-full object-cover transition-transform duration-700 group-hover:scale-105" />
             <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/35 to-transparent" />
             <div className="absolute inset-x-0 bottom-0 p-5 text-white">
               <p className="text-xs font-semibold uppercase tracking-[0.2em] text-[#f8dbe8]">{item.category}</p>
@@ -60,7 +60,7 @@ function GalleryPage() {
       {viewingItem && (
         <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/80 p-4" role="dialog" aria-modal="true" aria-label={`${viewingItem.title} enlarged view`} onClick={() => setViewingItem(null)}>
           <div className="relative max-h-full max-w-5xl" onClick={(event) => event.stopPropagation()}>
-            <img src={viewingItem.image} alt={viewingItem.title} className="max-h-[85vh] max-w-full rounded-xl object-contain shadow-2xl" />
+            <img src={viewingItem.image || '/hero_braids.jpg'} alt={viewingItem.title} className="max-h-[85vh] max-w-full rounded-xl object-contain shadow-2xl" />
             <button type="button" onClick={() => setViewingItem(null)} aria-label="Close enlarged image" className="absolute right-2 top-2 rounded-full bg-black/70 p-2 text-white transition hover:bg-black"><X size={20} /></button>
           </div>
         </div>

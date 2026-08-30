@@ -4,34 +4,23 @@ import { Link } from 'react-router-dom';
 import { ShoppingBag, ArrowRight } from 'lucide-react';
 import { useCart } from '../context/CartContext';
 
-// Curated African beauty & hair product images
-const PRODUCT_FALLBACK_IMAGES = [
-  // Hair oil / serum bottle — dark amber glass
-  'https://images.unsplash.com/photo-1608248597279-f99d160bfcbc?auto=format&fit=crop&w=800&q=80',
-  // Shea butter / cream jar — luxury beauty
-  'https://images.unsplash.com/photo-1571781926291-c477ebfd024b?auto=format&fit=crop&w=800&q=80',
-  // Cosmetics & skincare flat lay
-  'https://images.unsplash.com/photo-1556760544-74068565f05c?auto=format&fit=crop&w=800&q=80',
-  // Natural hair care products collection
-  'https://images.unsplash.com/photo-1526045612212-70caf35c14df?auto=format&fit=crop&w=800&q=80',
-  // Wooden hair comb & accessories
-  'https://images.unsplash.com/photo-1522337360788-8b13dee7a37e?auto=format&fit=crop&w=800&q=80',
-  // Beauty serum / essential oil drop
-  'https://images.unsplash.com/photo-1533577116850-9cc66cad8a9b?auto=format&fit=crop&w=800&q=80',
-];
+const fallbackImage = '/hero_braids.jpg';
 
 function ShopPage() {
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState(false);
+  const [settings, setSettings] = useState({});
   const [addedProductId, setAddedProductId] = useState(null);
   const [activeCategory, setActiveCategory] = useState('All');
   const { addToCart } = useCart();
 
   useEffect(() => {
-    axios
-      .get('/api/products')
-      .then((res) => setProducts((res.data.data || []).filter((product) => product.isActive !== false)))
+    Promise.all([axios.get('/api/products'), axios.get('/api/settings')])
+      .then(([productsRes, settingsRes]) => {
+        setProducts((productsRes.data.data || []).filter((product) => product.isActive !== false));
+        setSettings(settingsRes.data.data || {});
+      })
       .catch(() => setLoadError(true))
       .finally(() => setLoading(false));
   }, []);
@@ -40,13 +29,14 @@ function ShopPage() {
   const visibleProducts = activeCategory === 'All'
     ? products
     : products.filter((product) => product.category === activeCategory);
+  const heroImage = settings.heroImages?.find(Boolean) || fallbackImage;
 
   return (
     <div>
       {/* ── HERO ── */}
       <section className="relative overflow-hidden" style={{ minHeight: '260px' }}>
         <img
-          src="https://images.unsplash.com/photo-1556760544-74068565f05c?auto=format&fit=crop&w=1600&q=85"
+          src={heroImage}
           alt="African beauty & hair care products at EL'S BRAIDS shop"
           className="absolute inset-0 h-full w-full object-cover object-center"
         />
@@ -68,10 +58,8 @@ function ShopPage() {
         {categories.map((category) => <button key={category} type="button" onClick={() => setActiveCategory(category)} className={`rounded-full px-4 py-2 text-sm font-semibold ${activeCategory === category ? 'bg-[#5b2b45] text-white' : 'border border-[#d9bcc7] bg-white text-[#5b2b45]'}`}>{category}</button>)}
       </div>}
       <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
-        {visibleProducts.map((product, idx) => {
-          const bgImg =
-            product.images?.[0] ||
-            PRODUCT_FALLBACK_IMAGES[idx % PRODUCT_FALLBACK_IMAGES.length];
+        {visibleProducts.map((product) => {
+          const bgImg = product.images?.[0] || fallbackImage;
 
           return (
             <div

@@ -3,30 +3,24 @@ import axios from 'axios';
 import { Link } from 'react-router-dom';
 import { Clock3, ArrowRight } from 'lucide-react';
 
-// Curated braiding & hair care specific images for service cards
-const SERVICE_FALLBACK_IMAGES = [
-  // Box braids — woman with waist-length braids
-  'https://images.unsplash.com/photo-1560869713-7d0a29430803?auto=format&fit=crop&w=800&q=80',
-  // Cornrows — close-up neat cornrow pattern
-  'https://images.unsplash.com/photo-1595476108010-b4d1f102b1b1?auto=format&fit=crop&w=800&q=80',
-  // Salon braiding — stylist hands at work
-  'https://images.unsplash.com/photo-1522337360788-8b13dee7a37e?auto=format&fit=crop&w=800&q=80',
-  // Goddess locs / faux locs
-  'https://images.unsplash.com/photo-1580618672591-eb180b1a973f?auto=format&fit=crop&w=800&q=80',
-  // Hair treatment / moisturizing
-  'https://images.unsplash.com/photo-1562322140-8baeececf3df?auto=format&fit=crop&w=800&q=80',
-  // Salon chair styling
-  'https://images.unsplash.com/photo-1521590832167-7e5d18d02b3c?auto=format&fit=crop&w=800&q=80',
-];
+const fallbackImage = '/hero_braids.jpg';
 
 function ServicesPage() {
   const [services, setServices] = useState([]);
+  const [settings, setSettings] = useState({});
   const [activeCategory, setActiveCategory] = useState('All');
   const [touchImageId, setTouchImageId] = useState(null);
 
   useEffect(() => {
-    axios.get('/api/services').then((res) => setServices(res.data.data || [])).catch(console.error);
+    Promise.all([axios.get('/api/services'), axios.get('/api/settings')])
+      .then(([servicesRes, settingsRes]) => {
+        setServices(servicesRes.data.data || []);
+        setSettings(settingsRes.data.data || {});
+      })
+      .catch(console.error);
   }, []);
+
+  const heroImage = settings.heroImages?.find(Boolean) || fallbackImage;
 
   const categories = ['All', ...new Set(services.map((service) => service.category).filter(Boolean))];
   const visibleServices = activeCategory === 'All'
@@ -38,7 +32,7 @@ function ServicesPage() {
       {/* ── HERO ── */}
       <section className="relative overflow-hidden" style={{ minHeight: '260px' }}>
         <img
-          src="https://images.unsplash.com/photo-1595476108010-b4d1f102b1b1?auto=format&fit=crop&w=1600&q=85"
+          src={heroImage}
           alt="EL'S BRAIDS professional braiding services"
           className="absolute inset-0 h-full w-full object-cover object-center"
         />
@@ -57,9 +51,9 @@ function ServicesPage() {
         {categories.map((category) => <button key={category} type="button" onClick={() => setActiveCategory(category)} className={`rounded-full px-4 py-2 text-sm font-semibold ${activeCategory === category ? 'bg-[#5b2b45] text-white' : 'border border-[#d9bcc7] bg-white text-[#5b2b45]'}`}>{category}</button>)}
       </div>
       <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
-        {visibleServices.map((service, idx) => {
-          const bgImg = service.images?.[0] || SERVICE_FALLBACK_IMAGES[idx % SERVICE_FALLBACK_IMAGES.length];
-          const alternateImg = service.images?.[1] || SERVICE_FALLBACK_IMAGES[(idx + 1) % SERVICE_FALLBACK_IMAGES.length];
+        {visibleServices.map((service) => {
+          const bgImg = service.images?.[0] || fallbackImage;
+          const alternateImg = service.images?.[1] || bgImg;
           return (
             <div
               key={service.id}

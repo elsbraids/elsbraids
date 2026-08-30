@@ -17,7 +17,7 @@ function ServiceDetailsPage() {
     <div className="mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-8">
       <div className="grid gap-8 lg:grid-cols-[1.1fr_0.9fr]">
         <div>
-          <img src={service.images?.[0]} alt={service.name} className="h-[540px] w-full rounded-[2rem] object-cover shadow-soft" />
+          <img src={service.images?.[0] || '/hero_braids.jpg'} alt={service.name} className="h-[540px] w-full rounded-[2rem] object-cover shadow-soft" />
         </div>
         <div className="rounded-[2rem] border border-[#ead4dd] bg-[#fffafc] p-6 shadow-soft">
           <p className="text-sm font-semibold uppercase tracking-[0.22em] text-[#7a3855]">{service.category}</p>
