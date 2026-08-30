@@ -23,17 +23,23 @@ function HomePage() {
   }));
 
   const showPreviousHero = () => {
+    if (displayedHeroSlides.length < 2) return;
     setActiveHeroSlide((current) => (current - 1 + displayedHeroSlides.length) % displayedHeroSlides.length);
   };
 
   const showNextHero = () => {
+    if (displayedHeroSlides.length < 2) return;
     setActiveHeroSlide((current) => (current + 1) % displayedHeroSlides.length);
   };
 
   useEffect(() => {
-    const timer = window.setInterval(showNextHero, 7000);
+    setActiveHeroSlide((current) => displayedHeroSlides.length ? current % displayedHeroSlides.length : 0);
+    if (displayedHeroSlides.length < 2) return undefined;
+    const timer = window.setInterval(() => {
+      setActiveHeroSlide((current) => (current + 1) % displayedHeroSlides.length);
+    }, 5000);
     return () => window.clearInterval(timer);
-  }, []);
+  }, [displayedHeroSlides.length]);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -77,46 +83,43 @@ function HomePage() {
         <div className="absolute inset-0 -z-10 bg-[linear-gradient(90deg,rgba(30,8,20,0.92)_0%,rgba(55,18,40,0.72)_45%,rgba(30,8,20,0.18)_100%)]" />
 
         <div className="mx-auto flex min-h-[680px] max-w-7xl items-center px-4 py-16 sm:min-h-[720px] sm:px-6 lg:px-8">
-          <div className="max-w-xl text-white">
-            <div className="space-y-7">
-              <div className="text-xs font-semibold uppercase tracking-[0.22em] text-[#f8dbe8]">
-                Premium beauty studio · Kumasi, Ghana
-              </div>
-              <div>
-                <h1 className="font-['Twinkle_Star',cursive] text-5xl leading-[0.9] sm:text-6xl lg:text-8xl">
-                  EL'S <span className="block">BRAIDS</span>
-                </h1>
-                <p className="mt-5 max-w-md text-xl italic leading-tight text-[#f8dbe8] sm:text-2xl">
-                  Beautiful Hair. Beautiful You.
-                </p>
-              </div>
-              <div className="flex items-center gap-3 text-sm font-medium text-white/90 sm:text-base">
-                <MapPin size={18} className="shrink-0 text-[#f8dbe8]" />
-                <span>{String(settings.location || 'Atonsu, Kumasi, Ghana').replace(/Atomsu/gi, 'Atonsu')}</span>
-              </div>
-              <div className="flex flex-wrap gap-3 pt-1">
-                <Link
-                  to="/book"
-                  className="rounded-full bg-white px-6 py-3 text-sm font-semibold text-[#5b2b45] shadow-lg transition hover:bg-[#f8dbe8]"
-                >
-                  BOOK NOW
-                </Link>
-                <Link
-                  to="/shop"
-                  className="rounded-full border border-white/70 bg-transparent px-6 py-3 text-sm font-semibold text-white transition hover:bg-white/20"
-                >
-                  SHOP PRODUCTS
-                </Link>
-              </div>
+          <div className="max-w-2xl text-white">
+            <p className="text-xs font-semibold uppercase tracking-[0.26em] text-[#f8dbe8]">
+              Premium Beauty Studio · Kumasi, Ghana
+            </p>
+            <h1 className="mt-4 font-['Twinkle_Star',cursive] text-6xl leading-[0.88] sm:text-7xl lg:text-9xl">
+              EL'S <span className="block">BRAIDS</span>
+            </h1>
+            <p className="mt-6 text-lg italic leading-snug text-[#f8dbe8] sm:text-xl">
+              Beautiful Hair. Beautiful You.
+            </p>
+            <div className="mt-4 flex items-center gap-2 text-sm text-white/80">
+              <MapPin size={15} className="shrink-0 text-[#f8dbe8]" />
+              <span>{String(settings.location || 'Atonsu, Kumasi, Ghana').replace(/Atomsu/gi, 'Atonsu')}</span>
+            </div>
+            <div className="mt-8 flex flex-wrap gap-3">
+              <Link
+                to="/book"
+                className="rounded-full bg-white px-7 py-3.5 text-sm font-bold text-[#5b2b45] shadow-lg transition hover:bg-[#f8dbe8]"
+              >
+                BOOK NOW
+              </Link>
+              <Link
+                to="/shop"
+                className="rounded-full border border-white/60 bg-white/10 px-7 py-3.5 text-sm font-bold text-white backdrop-blur-sm transition hover:bg-white/20"
+              >
+                SHOP PRODUCTS
+              </Link>
             </div>
           </div>
         </div>
 
-        {displayedHeroSlides.length > 0 && <div className="absolute bottom-8 right-4 flex items-center gap-3 sm:right-8">
-          <button type="button" onClick={showPreviousHero} aria-label="Previous hero image" className="rounded-full border border-white/60 bg-black/20 p-3 text-white backdrop-blur-sm transition hover:bg-white hover:text-[#5b2b45]">
-            <ArrowLeft size={18} />
-          </button>
-          <div className="flex items-center gap-2" aria-label="Hero image slides">
+        {displayedHeroSlides.length > 1 && (
+          <div className="absolute bottom-5 left-1/2 flex w-[calc(100%-2rem)] max-w-7xl -translate-x-1/2 items-center justify-between px-2 sm:bottom-7 sm:px-0">
+            <button type="button" onClick={showPreviousHero} aria-label="Previous hero image" className="rounded-full border border-white/60 bg-black/20 p-2.5 text-white backdrop-blur-sm transition hover:bg-white hover:text-[#5b2b45] sm:p-3">
+              <ArrowLeft size={18} />
+            </button>
+            <div className="flex items-center gap-2" aria-label="Hero image slides">
             {displayedHeroSlides.map((slide, index) => (
               <button
                 key={slide.image}
@@ -124,14 +127,15 @@ function HomePage() {
                 onClick={() => setActiveHeroSlide(index)}
                 aria-label={`Show hero image ${index + 1}`}
                 aria-current={index === activeHeroSlide ? 'true' : undefined}
-                className={`h-2.5 rounded-full transition-all ${index === activeHeroSlide ? 'w-8 bg-white' : 'w-2.5 bg-white/50 hover:bg-white/80'}`}
+                className={`h-2 rounded-full transition-all duration-300 ${index === activeHeroSlide ? 'w-8 bg-white' : 'w-2 bg-white/50 hover:bg-white/80'}`}
               />
             ))}
+            </div>
+            <button type="button" onClick={showNextHero} aria-label="Next hero image" className="rounded-full border border-white/60 bg-black/20 p-2.5 text-white backdrop-blur-sm transition hover:bg-white hover:text-[#5b2b45] sm:p-3">
+              <ArrowRight size={18} />
+            </button>
           </div>
-          <button type="button" onClick={showNextHero} aria-label="Next hero image" className="rounded-full border border-white/60 bg-black/20 p-3 text-white backdrop-blur-sm transition hover:bg-white hover:text-[#5b2b45]">
-            <ArrowRight size={18} />
-          </button>
-        </div>}
+        )}
       </section>
 
       {/* ── SERVICES GRID ── */}
