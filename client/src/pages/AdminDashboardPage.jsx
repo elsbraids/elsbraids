@@ -37,6 +37,9 @@ const uniqueCatalogItems = (items, key) => {
   });
 };
 
+const cloudinaryCloudName = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME;
+const cloudinaryUploadPreset = import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET;
+
 function AdminDashboardPage() {
   const [searchParams] = useSearchParams();
   const authConfig = () => {
@@ -125,6 +128,14 @@ function AdminDashboardPage() {
   const [period, setPeriod] = useState("month");
   const [loading, setLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState("");
+
+  useEffect(() => {
+    if (document.querySelector('script[src="https://upload-widget.cloudinary.com/global/all.js"]')) return;
+    const script = document.createElement("script");
+    script.src = "https://upload-widget.cloudinary.com/global/all.js";
+    script.async = true;
+    document.body.appendChild(script);
+  }, []);
 
   const updateBookingStatus = async (bookingId, status) => {
     try {
@@ -552,9 +563,42 @@ function AdminDashboardPage() {
     ? `${mapCoordinateMatch[1]},${mapCoordinateMatch[2]}`
     : websiteForm.location || "Atonsu, Kumasi, Ghana";
 
-  const handleWebsiteImage = async (field, event) => {
-    const [image] = await readImages(event.target.files);
-    setWebsiteForm((form) => ({ ...form, [field]: image }));
+  const openCloudinaryUpload = (field, multiple = false) => {
+    if (!cloudinaryCloudName || !cloudinaryUploadPreset) {
+      alert("Cloudinary upload is not configured.");
+      return;
+    }
+    if (!window.cloudinary?.openUploadWidget) {
+      alert("Cloudinary is still loading. Please try again in a moment.");
+      return;
+    }
+
+    window.cloudinary.openUploadWidget(
+      {
+        cloudName: cloudinaryCloudName,
+        uploadPreset: cloudinaryUploadPreset,
+        sources: ["local", "url"],
+        multiple,
+        maxFiles: multiple ? 10 : 1,
+        clientAllowedFormats: ["jpg", "jpeg", "png", "webp", "svg"],
+        folder: "els-braids",
+      },
+      (error, result) => {
+        if (error) {
+          console.error(error);
+          alert("Unable to upload image to Cloudinary.");
+          return;
+        }
+        if (result.event !== "success") return;
+        const secureUrl = result.info.secure_url;
+        setWebsiteForm((form) => ({
+          ...form,
+          [field]: field === "heroImages"
+            ? [...form.heroImages, secureUrl]
+            : secureUrl,
+        }));
+      },
+    );
   };
 
   const removeWebsiteImage = (field, imageIndex = null) => {
@@ -563,14 +607,6 @@ function AdminDashboardPage() {
       [field]: field === "heroImages"
         ? form.heroImages.filter((_, index) => index !== imageIndex)
         : "",
-    }));
-  };
-
-  const handleHeroImages = async (event) => {
-    const images = await readImages(event.target.files);
-    setWebsiteForm((form) => ({
-      ...form,
-      heroImages: [...form.heroImages, ...images],
     }));
   };
 
@@ -1320,12 +1356,7 @@ function AdminDashboardPage() {
                 </label>
                 <label className="rounded-lg border border-dashed border-[#c98fa7] bg-white p-4 text-sm font-semibold text-[#5b2b45]">
                   Website logo
-                  <input
-                    type="file"
-                    accept="image/*"
-                    onChange={(event) => handleWebsiteImage("logo", event)}
-                    className="mt-2 block w-full text-sm font-normal"
-                  />
+                  <button type="button" onClick={() => openCloudinaryUpload("logo")} className="mt-2 block rounded-lg bg-[#5b2b45] px-3 py-2 text-sm font-semibold text-white">Upload with Cloudinary</button>
                   {websiteForm.logo && (
                     <span className="relative mt-3 block w-fit">
                       <img src={websiteForm.logo} alt="Logo preview" className="h-16 w-16 rounded-full object-cover" />
@@ -1335,12 +1366,7 @@ function AdminDashboardPage() {
                 </label>
                 <label className="rounded-lg border border-dashed border-[#c98fa7] bg-white p-4 text-sm font-semibold text-[#5b2b45]">
                   Favicon
-                  <input
-                    type="file"
-                    accept="image/*"
-                    onChange={(event) => handleWebsiteImage("favicon", event)}
-                    className="mt-2 block w-full text-sm font-normal"
-                  />
+                  <button type="button" onClick={() => openCloudinaryUpload("favicon")} className="mt-2 block rounded-lg bg-[#5b2b45] px-3 py-2 text-sm font-semibold text-white">Upload with Cloudinary</button>
                   {websiteForm.favicon && (
                     <span className="relative mt-3 block w-fit">
                       <img src={websiteForm.favicon} alt="Favicon preview" className="h-10 w-10 rounded-md object-cover" />
@@ -1350,13 +1376,7 @@ function AdminDashboardPage() {
                 </label>
                 <label className="rounded-lg border border-dashed border-[#c98fa7] bg-white p-4 text-sm font-semibold text-[#5b2b45] md:col-span-2">
                   Hero slider images
-                  <input
-                    type="file"
-                    accept="image/*"
-                    multiple
-                    onChange={handleHeroImages}
-                    className="mt-2 block w-full text-sm font-normal"
-                  />
+                  <button type="button" onClick={() => openCloudinaryUpload("heroImages", true)} className="mt-2 block rounded-lg bg-[#5b2b45] px-3 py-2 text-sm font-semibold text-white">Upload with Cloudinary</button>
                   {websiteForm.heroImages.length > 0 && (
                     <div className="mt-3 grid grid-cols-3 gap-2 sm:grid-cols-5">
                       {websiteForm.heroImages.map((image, index) => (
