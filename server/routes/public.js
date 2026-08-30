@@ -1,5 +1,6 @@
 const express = require('express');
 const router = express.Router();
+const { Service, Gallery, Settings } = require('../models');
 const { inMemoryStore } = require('../data/sampleData');
 const { makeId, resolveGoogleMapsEmbed } = require('../data/sampleData');
 const bcrypt = require('bcryptjs');
