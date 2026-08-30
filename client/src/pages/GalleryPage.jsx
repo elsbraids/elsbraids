@@ -6,12 +6,20 @@ const categories = ['All', 'Braids', 'Curls', 'Piercing', 'Other'];
 
 function GalleryPage() {
   const [items, setItems] = useState([]);
+  const [settings, setSettings] = useState({});
   const [activeCategory, setActiveCategory] = useState('All');
   const [viewingItem, setViewingItem] = useState(null);
 
   useEffect(() => {
-    axios.get('/api/gallery').then((res) => setItems(res.data.data || [])).catch(console.error);
+    Promise.all([axios.get('/api/gallery'), axios.get('/api/settings')])
+      .then(([galleryRes, settingsRes]) => {
+        setItems(galleryRes.data.data || []);
+        setSettings(settingsRes.data.data || {});
+      })
+      .catch(console.error);
   }, []);
+
+  const fallbackImage = settings.heroImages?.find(Boolean) || '/hero_braids.jpg';
 
   useEffect(() => {
     if (!viewingItem) return undefined;
@@ -25,46 +33,66 @@ function GalleryPage() {
   const filtered = activeCategory === 'All' ? items : items.filter((item) => item.category === activeCategory);
 
   return (
-    <div className="mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-8">
-      <div className="mb-8 text-center">
-        <p className="text-sm font-semibold uppercase tracking-[0.28em] text-[#7a3855]">Gallery</p>
-        <h1 className="mt-3 text-4xl font-black uppercase text-[#5b2b45]">Recent styles</h1>
-      </div>
-      <div className="mb-8 flex flex-wrap justify-center gap-3">
-        {categories.map((category) => (
-          <button
-            key={category}
-            onClick={() => setActiveCategory(category)}
-            className={`rounded-full px-4 py-2 text-sm font-semibold ${activeCategory === category ? 'bg-[#5b2b45] text-white' : 'border border-[#d9bcc7] bg-white text-[#5b2b45]'}`}
-          >
-            {category}
-          </button>
-        ))}
-      </div>
-      <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
-        {filtered.map((item) => (
-          <div key={item.id} className="group relative min-h-[360px] overflow-hidden rounded-[1.5rem] shadow-lg">
-            <img src={item.image || '/hero_braids.jpg'} alt={item.title} className="absolute inset-0 h-full w-full object-cover transition-transform duration-700 group-hover:scale-105" />
-            <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/35 to-transparent" />
-            <div className="absolute inset-x-0 bottom-0 p-5 text-white">
-              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-[#f8dbe8]">{item.category}</p>
-              <h3 className="mt-2 text-2xl font-bold leading-tight drop-shadow">{item.title}</h3>
-              {item.description && <p className="mt-2 line-clamp-2 text-sm leading-6 text-white/80">{item.description}</p>}
-              <button type="button" onClick={() => setViewingItem(item)} className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-full bg-white/15 px-4 py-2.5 text-sm font-semibold text-white backdrop-blur-sm ring-1 ring-white/30 transition hover:bg-white hover:text-[#5b2b45]">
-                View <Eye size={15} />
-              </button>
-            </div>
-          </div>
-        ))}
-      </div>
-      {viewingItem && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/80 p-4" role="dialog" aria-modal="true" aria-label={`${viewingItem.title} enlarged view`} onClick={() => setViewingItem(null)}>
-          <div className="relative max-h-full max-w-5xl" onClick={(event) => event.stopPropagation()}>
-            <img src={viewingItem.image || '/hero_braids.jpg'} alt={viewingItem.title} className="max-h-[85vh] max-w-full rounded-xl object-contain shadow-2xl" />
-            <button type="button" onClick={() => setViewingItem(null)} aria-label="Close enlarged image" className="absolute right-2 top-2 rounded-full bg-black/70 p-2 text-white transition hover:bg-black"><X size={20} /></button>
+    <div>
+      {/* ── HERO ── */}
+      <section className="relative overflow-hidden" style={{ minHeight: '260px' }}>
+        <img
+          src={fallbackImage}
+          alt="EL'S BRAIDS beauty gallery"
+          onError={(event) => {
+            event.currentTarget.onerror = null;
+            event.currentTarget.src = '/hero_braids.jpg';
+          }}
+          className="absolute inset-0 h-full w-full object-cover object-center"
+        />
+        <div className="absolute inset-0 bg-gradient-to-b from-black/60 via-black/50 to-[#f9efef]" />
+        <div className="relative mx-auto flex min-h-[260px] max-w-7xl items-end px-4 pb-8 sm:px-6 lg:px-8">
+          <div className="text-white">
+            <p className="text-xs font-semibold uppercase tracking-[0.28em] text-[#f8dbe8]">Gallery</p>
+            <h1 className="mt-2 font-['Caveat',cursive] text-5xl font-bold sm:text-6xl">Recent Styles</h1>
           </div>
         </div>
-      )}
+      </section>
+
+      <div className="mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-8">
+        <div className="mb-8 flex flex-wrap justify-center gap-3">
+          {categories.map((category) => (
+            <button
+              key={category}
+              onClick={() => setActiveCategory(category)}
+              className={`rounded-full px-4 py-2 text-sm font-semibold ${activeCategory === category ? 'bg-[#5b2b45] text-white' : 'border border-[#d9bcc7] bg-white text-[#5b2b45]'}`}
+            >
+              {category}
+            </button>
+          ))}
+        </div>
+
+        <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
+          {filtered.map((item) => (
+            <div key={item.id} className="group relative min-h-[360px] overflow-hidden rounded-[1.5rem] shadow-lg">
+              <img src={item.image || fallbackImage} alt={item.title} onError={(event) => { event.currentTarget.onerror = null; event.currentTarget.src = fallbackImage; }} className="absolute inset-0 h-full w-full object-cover transition-transform duration-700 group-hover:scale-105" />
+              <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/35 to-transparent" />
+              <div className="absolute inset-x-0 bottom-0 p-5 text-white">
+                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-[#f8dbe8]">{item.category}</p>
+                <h3 className="mt-2 text-2xl font-bold leading-tight drop-shadow">{item.title}</h3>
+                {item.description && <p className="mt-2 line-clamp-2 text-sm leading-6 text-white/80">{item.description}</p>}
+                <button type="button" onClick={() => setViewingItem(item)} className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-full bg-white/15 px-4 py-2.5 text-sm font-semibold text-white backdrop-blur-sm ring-1 ring-white/30 transition hover:bg-white hover:text-[#5b2b45]">
+                  View <Eye size={15} />
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {viewingItem && (
+          <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/80 p-4" role="dialog" aria-modal="true" aria-label={`${viewingItem.title} enlarged view`} onClick={() => setViewingItem(null)}>
+            <div className="relative max-h-full max-w-5xl" onClick={(event) => event.stopPropagation()}>
+              <img src={viewingItem.image || fallbackImage} alt={viewingItem.title} onError={(event) => { event.currentTarget.onerror = null; event.currentTarget.src = fallbackImage; }} className="max-h-[85vh] max-w-full rounded-xl object-contain shadow-2xl" />
+              <button type="button" onClick={() => setViewingItem(null)} aria-label="Close enlarged image" className="absolute right-2 top-2 rounded-full bg-black/70 p-2 text-white transition hover:bg-black"><X size={20} /></button>
+            </div>
+          </div>
+        )}
+      </div>
     </div>
   );
 }
