@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { Clock3, MapPin, ArrowLeft, ArrowRight } from 'lucide-react';
+import { Clock3, MapPin, ArrowRight } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import axios from 'axios';
 import { handleImageError, imageFallback, optimizeImageUrl } from '../utils/image';
@@ -115,11 +115,7 @@ function HomePage() {
         </div>
 
         {displayedHeroSlides.length > 1 && (
-          <div className="absolute bottom-5 left-1/2 flex w-[calc(100%-2rem)] max-w-7xl -translate-x-1/2 items-center justify-between px-2 sm:bottom-7 sm:px-0">
-            <button type="button" onClick={showPreviousHero} aria-label="Previous hero image" className="rounded-full border border-white/60 bg-black/20 p-2.5 text-white backdrop-blur-sm transition hover:bg-white hover:text-[#5b2b45] sm:p-3">
-              <ArrowLeft size={18} />
-            </button>
-            <div className="flex items-center gap-2" aria-label="Hero image slides">
+          <div className="absolute bottom-7 left-1/2 flex -translate-x-1/2 items-center gap-2" aria-label="Hero image slides">
             {displayedHeroSlides.map((slide, index) => (
               <button
                 key={slide.image}
@@ -130,10 +126,6 @@ function HomePage() {
                 className={`h-2 rounded-full transition-all duration-300 ${index === activeHeroSlide ? 'w-8 bg-white' : 'w-2 bg-white/50 hover:bg-white/80'}`}
               />
             ))}
-            </div>
-            <button type="button" onClick={showNextHero} aria-label="Next hero image" className="rounded-full border border-white/60 bg-black/20 p-2.5 text-white backdrop-blur-sm transition hover:bg-white hover:text-[#5b2b45] sm:p-3">
-              <ArrowRight size={18} />
-            </button>
           </div>
         )}
       </section>
