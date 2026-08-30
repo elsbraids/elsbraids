@@ -139,9 +139,13 @@ const settingsSchema = new mongoose.Schema(
     email: { type: String, default: 'hello@elsbraids.com' },
     location: { type: String, default: 'Atonsu, Kumasi, Ghana' },
     googleMapsUrl: { type: String, default: '' },
+    googleMapsEmbedUrl: { type: String, default: '' },
     businessHours: { type: String, default: 'Mon - Sat: 9:00 AM - 7:00 PM' },
     aboutText: { type: String, default: 'Professional braiding, piercing and beauty services in Kumasi.' },
     homepageText: { type: String, default: 'Beautiful Hair. Beautiful You.' },
+    logo: { type: String, default: '' },
+    favicon: { type: String, default: '' },
+    heroImages: [{ type: String }],
     socials: {
       instagram: { type: String, default: '#' },
       facebook: { type: String, default: '#' },

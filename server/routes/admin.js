@@ -236,11 +236,16 @@ router.put('/settings', async (req, res) => {
     }
   }
   if (isDatabaseReady()) {
-    const existingSettings = await Settings.findOne().select('_id').lean();
+    const existingSettings = await Settings.findOne().select('_id googleMapsUrl').lean();
     const id = existingSettings?._id || new ObjectId();
-    const settings = await Settings.findOneAndUpdate({ _id: new ObjectId(id) }, { $set: nextSettings }, { upsert: true, new: true, setDefaultsOnInsert: true }).lean();
-    settings.googleMapsEmbedUrl = await resolveGoogleMapsEmbed(settings.googleMapsUrl);
-    await Settings.updateOne({ _id: new ObjectId(id) }, { $set: { googleMapsEmbedUrl: settings.googleMapsEmbedUrl } });
+    nextSettings.googleMapsEmbedUrl = await resolveGoogleMapsEmbed(nextSettings.googleMapsUrl || existingSettings?.googleMapsUrl || '');
+    console.log('[settings] Saving MongoDB fields:', { id: String(id), fields: Object.keys(nextSettings) });
+    const settings = await Settings.findOneAndUpdate(
+      { _id: new ObjectId(id) },
+      { $set: nextSettings },
+      { upsert: true, new: true, setDefaultsOnInsert: true },
+    ).lean();
+    console.log('[settings] Saved MongoDB fields:', { id: String(settings._id), fields: Object.keys(settings) });
     return res.json({ success: true, data: settings });
   }
   inMemoryStore.settings = { ...inMemoryStore.settings, ...nextSettings };
