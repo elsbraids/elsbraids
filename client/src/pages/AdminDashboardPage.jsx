@@ -584,6 +584,21 @@ function AdminDashboardPage() {
     ? `${mapCoordinateMatch[1]},${mapCoordinateMatch[2]}`
     : websiteForm.location || "Atonsu, Kumasi, Ghana";
 
+  const useCurrentMapLocation = () => {
+    if (!navigator.geolocation) {
+      alert("Geolocation is not supported by this browser.");
+      return;
+    }
+    navigator.geolocation.getCurrentPosition(
+      ({ coords }) => {
+        const url = `https://www.google.com/maps/@${coords.latitude.toFixed(6)},${coords.longitude.toFixed(6)},17z`;
+        setWebsiteForm((form) => ({ ...form, googleMapsUrl: url }));
+      },
+      () => alert("Unable to access your current location. Please allow location access or enter a map link manually."),
+      { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 },
+    );
+  };
+
   const openCloudinaryUpload = (field, multiple = false) => {
     if (!cloudinaryCloudName || !cloudinaryUploadPreset) {
       alert("Cloudinary upload is not configured.");
@@ -1336,6 +1351,7 @@ function AdminDashboardPage() {
                 <label className="text-sm font-semibold text-[#5b2b45]">
                   Google Maps link
                   <input type="url" value={websiteForm.googleMapsUrl} onChange={(event) => setWebsiteForm({ ...websiteForm, googleMapsUrl: event.target.value })} placeholder="https://maps.google.com/..." className="mt-2 w-full rounded-lg border border-[#ead4dd] bg-white px-4 py-3 font-normal" />
+                  <button type="button" onClick={useCurrentMapLocation} className="mt-3 rounded-lg border border-[#7a3855] bg-[#f9eaf1] px-3 py-2 text-sm font-semibold text-[#5b2b45]">Use current location</button>
                   <iframe
                     title="Configured Google Maps location"
                     src={websiteForm.googleMapsEmbedUrl || (websiteForm.googleMapsUrl?.includes('/maps/embed')

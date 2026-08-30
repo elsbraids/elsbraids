@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import axios from 'axios';
-import { ShoppingBag } from 'lucide-react';
+import { Minus, Plus, ShoppingBag } from 'lucide-react';
 import { useCart } from '../context/CartContext';
 import { handleImageError, optimizeImageUrl } from '../utils/image';
 
@@ -35,7 +35,11 @@ function ProductDetailsPage() {
           <p className="mt-5 text-base leading-8 text-[#5f4253]">{product.description}</p>
           <div className="mt-5 flex items-center gap-3">
             <label className="text-sm text-[#5f4253]">Qty</label>
-            <input type="number" min="1" max={product.stock} value={quantity} onChange={(e) => setQuantity(Math.min(product.stock, Math.max(1, Number(e.target.value))))} className="w-20 rounded-md border border-[#d9bcc7] bg-white px-3 py-2 text-center" />
+            <div className="flex items-center overflow-hidden rounded-md border border-[#d9bcc7] bg-white">
+              <button type="button" onClick={() => setQuantity((current) => Math.max(1, current - 1))} disabled={quantity <= 1} aria-label="Decrease quantity" className="p-2 text-[#5b2b45] hover:bg-[#f9eaf1] disabled:cursor-not-allowed disabled:opacity-40"><Minus size={16} /></button>
+              <input type="number" min="1" max={product.stock} value={quantity} onChange={(e) => setQuantity(Math.min(product.stock, Math.max(1, Number(e.target.value) || 1)))} aria-label="Product quantity" className="w-14 border-x border-[#d9bcc7] bg-white px-2 py-2 text-center" />
+              <button type="button" onClick={() => setQuantity((current) => Math.min(product.stock, current + 1))} disabled={quantity >= product.stock} aria-label="Increase quantity" className="p-2 text-[#5b2b45] hover:bg-[#f9eaf1] disabled:cursor-not-allowed disabled:opacity-40"><Plus size={16} /></button>
+            </div>
           </div>
           <button disabled={!product.stock} onClick={() => addToCart(product, quantity)} className="mt-8 flex w-full items-center justify-center gap-2 rounded-md bg-[#5b2b45] px-5 py-4 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:bg-[#bba3ad]"><ShoppingBag size={18} /> {product.stock ? 'Add To Cart' : 'Sold Out'}</button>
           <Link to="/shop" className="mt-3 inline-flex w-full items-center justify-center rounded-md border border-[#7a3855] px-5 py-4 text-sm font-semibold text-[#5b2b45]">Continue Shopping</Link>
