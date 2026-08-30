@@ -213,12 +213,12 @@ router.put('/settings', async (req, res) => {
   for (const key of allowed) {
     if (!(key in req.body)) continue;
     if (['logo', 'favicon', 'googleMapsUrl'].includes(key)) {
-      const isFaviconDataUri = key === 'favicon' && typeof req.body[key] === 'string' && req.body[key].startsWith('data:');
-      const value = isFaviconDataUri
+      const isImageDataUri = ['logo', 'favicon'].includes(key) && typeof req.body[key] === 'string' && req.body[key].startsWith('data:');
+      const value = isImageDataUri
         ? req.body[key]
         : parseSafeUrl(req.body[key], key === 'googleMapsUrl' ? ['google.com', 'www.google.com', 'maps.google.com', 'www.google.com.gh'] : []);
       if (req.body[key] && !value) {
-        const message = key === 'favicon' ? 'favicon must be a data URI or HTTPS URL.' : `${key} must be a safe HTTPS URL.`;
+        const message = ['logo', 'favicon'].includes(key) ? `${key} must be a data URI or HTTPS URL.` : `${key} must be a safe HTTPS URL.`;
         return res.status(400).json({ message });
       }
       nextSettings[key] = value;
