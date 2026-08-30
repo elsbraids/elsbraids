@@ -212,8 +212,14 @@ router.put('/settings', async (req, res) => {
   for (const key of allowed) {
     if (!(key in req.body)) continue;
     if (['logo', 'favicon', 'googleMapsUrl'].includes(key)) {
-      const value = parseSafeUrl(req.body[key], key === 'googleMapsUrl' ? ['google.com', 'www.google.com', 'maps.google.com', 'www.google.com.gh'] : []);
-      if (req.body[key] && !value) return res.status(400).json({ message: `${key} must be a safe HTTPS URL.` });
+      const isFaviconDataUri = key === 'favicon' && typeof req.body[key] === 'string' && req.body[key].startsWith('data:');
+      const value = isFaviconDataUri
+        ? req.body[key]
+        : parseSafeUrl(req.body[key], key === 'googleMapsUrl' ? ['google.com', 'www.google.com', 'maps.google.com', 'www.google.com.gh'] : []);
+      if (req.body[key] && !value) {
+        const message = key === 'favicon' ? 'favicon must be a data URI or HTTPS URL.' : `${key} must be a safe HTTPS URL.`;
+        return res.status(400).json({ message });
+      }
       nextSettings[key] = value;
     } else if (key === 'heroImages') {
       if (!Array.isArray(req.body[key]) || req.body[key].length > 10) return res.status(400).json({ message: 'Too many hero images.' });
