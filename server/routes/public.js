@@ -13,6 +13,7 @@ const { getJwtSecret, jwtOptions } = require('../config/security');
 const { validateCustomerSignup, validateCustomerCredentials } = require('../utils/customerAuth');
 const { cleanText, isEmail, isPhone, parseSafeUrl, parseItems } = require('../utils/requestValidation');
 const crypto = require('crypto');
+const nodemailer = require('nodemailer');
 const { Customer, Product, Booking, Order, Payment } = require('../models');
 const { isDatabaseReady } = require('../utils/database');
 
@@ -289,16 +290,97 @@ router.post('/customers/signin', authLimiter, async (req, res) => {
   const fullCustomer = isDatabaseReady()
     ? await Customer.findOne({ email: sanitizedPayload.email }).select('+passwordHash').lean()
     : inMemoryStore.customerAccounts.find((entry) => entry.email === sanitizedPayload.email);
-  const storedHash = fullCustomer?.password || '$2b$12$invalidinvalidinvalidinvalidinvalidinvalidinvalidinvalidinvalid';
-  const passwordMatches = storedHash ? await bcrypt.compare(sanitizedPayload.password, storedHash) : false;
+
+  if (!fullCustomer) {
+    console.log(`[customer-auth] Signin failed: User not found for email ${sanitizedPayload.email}`);
+    return res.status(401).json({ success: false, message: 'User not found.' });
+  } else {
+    console.log(`[customer-auth] Signin: User found for email ${sanitizedPayload.email}`);
+  }
+
+  // Handle both DB field (passwordHash) and in-memory field (password)
+  const storedHash = fullCustomer.passwordHash || fullCustomer.password || '$2b$12$invalidinvalidinvalidinvalidinvalidinvalidinvalidinvalidinvalid';
+  const passwordMatches = await bcrypt.compare(sanitizedPayload.password, storedHash);
 
   if (!passwordMatches) {
-    return res.status(401).json({ success: false, message: 'Invalid email or password.' });
+    console.log(`[customer-auth] Signin failed: Password does not match for email ${sanitizedPayload.email}`);
+    return res.status(401).json({ success: false, message: 'Password is incorrect.' });
+  } else {
+    console.log(`[customer-auth] Signin: Password matches for email ${sanitizedPayload.email}`);
   }
 
   const token = createCustomerToken({ id: fullCustomer.id || fullCustomer._id.toString(), email: fullCustomer.email });
   res.cookie('customerToken', token, { httpOnly: true, secure: process.env.NODE_ENV === 'production', sameSite: 'strict', maxAge: 60 * 60 * 1000 });
   return res.json({ success: true, customer: { name: fullCustomer.fullName || fullCustomer.name, email: fullCustomer.email } });
+});
+
+const sendPasswordResetEmail = async (email, resetUrl) => {
+  if (!process.env.EMAIL_HOST || !process.env.EMAIL_USER || !process.env.EMAIL_PASSWORD) return false;
+  const transporter = nodemailer.createTransport({
+    host: process.env.EMAIL_HOST,
+    port: Number(process.env.EMAIL_PORT || 587),
+    secure: Number(process.env.EMAIL_PORT || 587) === 465,
+    auth: { user: process.env.EMAIL_USER, pass: process.env.EMAIL_PASSWORD },
+  });
+  await transporter.sendMail({
+    from: process.env.EMAIL_FROM || process.env.EMAIL_USER,
+    to: email,
+    subject: "Reset your EL'S BRAIDS password",
+    text: `Reset your password using this link: ${resetUrl}`,
+    html: `<p>Reset your EL'S BRAIDS password using this link:</p><p><a href="${resetUrl}">${resetUrl}</a></p>`,
+  });
+  return true;
+};
+
+router.post('/customers/forgot-password', authLimiter, async (req, res) => {
+  const email = String(req.body?.email ?? '').replace(/[<>]/g, '').trim().toLowerCase();
+  const genericResponse = { success: true, message: 'If an account exists for that email, password reset instructions have been sent.' };
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return res.json(genericResponse);
+
+  const customer = isDatabaseReady()
+    ? await Customer.findOne({ email }).select('+resetTokenHash +resetTokenExpiresAt').lean()
+    : inMemoryStore.customerAccounts.find((entry) => entry.email === email);
+  if (!customer || customer.authProvider === 'google') return res.json(genericResponse);
+
+  const token = crypto.randomBytes(32).toString('hex');
+  const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
+  const expiresAt = new Date(Date.now() + 60 * 60 * 1000);
+  if (isDatabaseReady()) {
+    await Customer.updateOne({ _id: customer._id }, { $set: { resetTokenHash: tokenHash, resetTokenExpiresAt: expiresAt } });
+  } else {
+    customer.resetTokenHash = tokenHash;
+    customer.resetTokenExpiresAt = expiresAt.toISOString();
+  }
+
+  const resetUrl = `${process.env.CLIENT_URL || 'http://localhost:5173'}/reset-password?token=${token}`;
+  try {
+    const emailed = await sendPasswordResetEmail(email, resetUrl);
+    if (!emailed) console.log('[customer-auth] Password reset URL (development):', resetUrl);
+  } catch (error) {
+    console.error('[customer-auth] Password reset email failed:', error.message);
+  }
+  return res.json(process.env.NODE_ENV === 'production' ? genericResponse : { ...genericResponse, resetToken: token });
+});
+
+router.post('/customers/reset-password', authLimiter, async (req, res) => {
+  const token = String(req.body?.token ?? '').trim();
+  const password = String(req.body?.password ?? '').trim();
+  if (!token || password.length < 8) return res.status(400).json({ success: false, message: 'A valid token and password of at least 8 characters are required.' });
+  const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
+  const now = new Date();
+  const customer = isDatabaseReady()
+    ? await Customer.findOne({ resetTokenHash: tokenHash, resetTokenExpiresAt: { $gt: now } }).select('+resetTokenHash +resetTokenExpiresAt')
+    : inMemoryStore.customerAccounts.find((entry) => entry.resetTokenHash === tokenHash && new Date(entry.resetTokenExpiresAt) > now);
+  if (!customer) return res.status(400).json({ success: false, message: 'This reset link is invalid or has expired.' });
+  const passwordHash = await bcrypt.hash(password, 12);
+  if (isDatabaseReady()) {
+    await Customer.updateOne({ _id: customer._id }, { $set: { passwordHash }, $unset: { resetTokenHash: 1, resetTokenExpiresAt: 1 } });
+  } else {
+    customer.password = passwordHash;
+    delete customer.resetTokenHash;
+    delete customer.resetTokenExpiresAt;
+  }
+  return res.json({ success: true, message: 'Password reset successfully. You can now sign in.' });
 });
 
 router.get('/customers/google', authLimiter, (req, res) => {

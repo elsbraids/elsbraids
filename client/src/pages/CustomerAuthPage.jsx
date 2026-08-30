@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Eye, EyeOff } from 'lucide-react';
 import axios from 'axios';
-import { Link, useNavigate, useLocation } from 'react-router-dom';
+import { Link, useNavigate, useLocation, useSearchParams } from 'react-router-dom';
 import { FcGoogle } from 'react-icons/fc';
 
 const initialForm = {
@@ -16,11 +16,16 @@ const initialForm = {
 function CustomerAuthPage() {
   const navigate = useNavigate();
   const location = useLocation();
+  const [searchParams] = useSearchParams();
   const isSignIn = location.pathname === '/signin';
+  const isForgotPassword = location.pathname === '/forgot-password';
+  const isResetPassword = location.pathname === '/reset-password';
   const [form, setForm] = useState(initialForm);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [googleError] = useState(new URLSearchParams(location.search).get('google') === 'failed');
+  const [resetToken, setResetToken] = useState(searchParams.get('token') || '');
+  const [resetMessage, setResetMessage] = useState('');
 
   const handleChange = (event) => {
     const { name, value } = event.target;
@@ -32,6 +37,17 @@ function CustomerAuthPage() {
     setIsSubmitting(true);
 
     try {
+      if (isForgotPassword) {
+        const response = await axios.post('/api/customers/forgot-password', { email: form.email });
+        setResetMessage(response.data.resetToken ? `Development reset token: ${response.data.resetToken}` : response.data.message);
+        return;
+      }
+      if (isResetPassword) {
+        const response = await axios.post('/api/customers/reset-password', { token: resetToken, password: form.password });
+        alert(response.data.message);
+        navigate('/signin');
+        return;
+      }
       const endpoint = isSignIn ? '/api/customers/signin' : '/api/customers/signup';
       const payload = isSignIn ? { email: form.email, password: form.password } : form;
       const response = await axios.post(endpoint, payload, { withCredentials: true });
@@ -73,7 +89,7 @@ function CustomerAuthPage() {
         </div>
 
         <div className="p-8 sm:p-10">
-          <div className="mb-6 grid grid-cols-2 rounded-full border border-[#ead4dd] bg-[#fffafc] p-1">
+          {!isForgotPassword && !isResetPassword && <div className="mb-6 grid grid-cols-2 rounded-full border border-[#ead4dd] bg-[#fffafc] p-1">
             <Link
               to="/signin"
               state={{ from: location.state?.from }}
@@ -88,13 +104,20 @@ function CustomerAuthPage() {
             >
               Sign Up
             </Link>
-          </div>
+          </div>}
 
-          <h2 className="text-2xl font-black uppercase text-[#5b2b45]">{isSignIn ? 'Sign In' : 'Sign Up'}</h2>
-          <a href="/api/customers/google" className="mt-5 flex w-full items-center justify-center gap-3 rounded-lg border border-[#e7d2dc] bg-white px-4 py-3 text-sm font-semibold text-[#5b2b45]"><FcGoogle size={20} /> Continue with Google</a>
+          <h2 className="text-2xl font-black uppercase text-[#5b2b45]">{isForgotPassword ? 'Forgot Password' : isResetPassword ? 'Reset Password' : isSignIn ? 'Sign In' : 'Sign Up'}</h2>
+          {isSignIn && <a href="/api/customers/google" className="mt-5 flex w-full items-center justify-center gap-3 rounded-lg border border-[#e7d2dc] bg-white px-4 py-3 text-sm font-semibold text-[#5b2b45]"><FcGoogle size={20} /> Continue with Google</a>}
           {googleError && <p className="mt-3 text-sm text-red-700">Google sign-in could not be completed. Please try again.</p>}
           <form onSubmit={handleSubmit} className="mt-6 space-y-5">
+            {(isForgotPassword || isResetPassword) && <label className="block text-sm font-medium text-[#5b2b45]">
+              {isResetPassword ? 'Reset token' : 'Email address'}
+              {isResetPassword ? <input value={resetToken} onChange={(event) => setResetToken(event.target.value)} required className="mt-2 w-full rounded-lg border border-[#e7d2dc] bg-[#fffafc] px-4 py-3 outline-none" /> : <input type="email" name="email" value={form.email} onChange={handleChange} required className="mt-2 w-full rounded-lg border border-[#e7d2dc] bg-[#fffafc] px-4 py-3 outline-none" />}
+            </label>}
+            {isResetPassword && <label className="block text-sm font-medium text-[#5b2b45]">New password<input type="password" name="password" value={form.password} onChange={handleChange} required minLength={8} className="mt-2 w-full rounded-lg border border-[#e7d2dc] bg-[#fffafc] px-4 py-3 outline-none" /></label>}
+            {isForgotPassword && resetMessage && <p className="rounded-lg bg-[#edf8f1] px-4 py-3 text-sm font-semibold text-green-800">{resetMessage}</p>}
             {!isSignIn && (
+              !isForgotPassword && !isResetPassword &&
               <div className="grid gap-5 md:grid-cols-2">
                 <label className="block text-sm font-medium text-[#5b2b45] md:col-span-2">
                   Full name
@@ -143,7 +166,7 @@ function CustomerAuthPage() {
               </div>
             )}
 
-            {isSignIn && (
+            {isSignIn && !isForgotPassword && !isResetPassword && (
               <>
                 <label className="block text-sm font-medium text-[#5b2b45]">
                   Email address
@@ -173,15 +196,19 @@ function CustomerAuthPage() {
             )}
 
             <button type="submit" disabled={isSubmitting} className="w-full rounded-lg bg-[#5b2b45] px-4 py-3 font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60">
-              {isSubmitting ? (isSignIn ? 'Signing in...' : 'Creating account...') : (isSignIn ? 'Sign In' : 'Create account')}
+              {isSubmitting ? 'Please wait...' : isForgotPassword ? 'Send reset instructions' : isResetPassword ? 'Reset password' : isSignIn ? 'Sign In' : 'Create account'}
             </button>
 
-            <p className="text-center text-sm text-[#5f4253]">
+            {!isForgotPassword && !isResetPassword && isSignIn && <p className="text-center text-sm text-[#5f4253]">
+              <Link to="/forgot-password" className="font-semibold text-[#5b2b45] underline">Forgot password?</Link>
+            </p>}
+            {(isForgotPassword || isResetPassword) && <p className="text-center text-sm text-[#5f4253]"><Link to="/signin" className="font-semibold text-[#5b2b45] underline">Back to sign in</Link></p>}
+            {!isForgotPassword && !isResetPassword && <p className="text-center text-sm text-[#5f4253]">
               {isSignIn ? 'Need an account?' : 'Already have an account?'}{' '}
               <Link to={isSignIn ? '/signup' : '/signin'} state={{ from: location.state?.from }} className="font-semibold text-[#5b2b45] underline">
                 {isSignIn ? 'Create one' : 'Sign in'}
               </Link>
-            </p>
+            </p>}
           </form>
         </div>
       </div>

@@ -38,6 +38,8 @@ function App() {
             <Route path="/about" element={<AboutPage />} />
           <Route path="/signup" element={<CustomerAuthPage />} />
           <Route path="/signin" element={<CustomerAuthPage />} />
+          <Route path="/forgot-password" element={<CustomerAuthPage />} />
+          <Route path="/reset-password" element={<CustomerAuthPage />} />
           <Route path="/account/orders" element={<CustomerOrdersPage />} />
           </Route>
 
