@@ -3,7 +3,6 @@ import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
 import { useCart } from '../context/CartContext';
 
-const paystackKey = import.meta.env.VITE_PAYSTACK_PUBLIC_KEY || 'pk_test_xxxxxxxxxxxxxxxxxxxxxxxxxxxxx';
 const checkoutDraftKey = 'elsCheckoutDraft';
 const ghanaRegions = [
   'Ahafo',
@@ -26,31 +25,38 @@ const ghanaRegions = [
 
 function PaystackCheckoutPage() {
   const navigate = useNavigate();
+  const reference = new URLSearchParams(window.location.search).get('reference');
+  const isPaymentReturn = Boolean(reference);
   const { cart, subtotal, clearCart } = useCart();
   const [form, setForm] = useState(() => {
     try {
       const draft = sessionStorage.getItem(checkoutDraftKey);
       if (draft) {
-        sessionStorage.removeItem(checkoutDraftKey);
+        if (!isPaymentReturn) sessionStorage.removeItem(checkoutDraftKey);
         return JSON.parse(draft);
       }
     } catch { }
     return { customerName: '', email: '', phone: '', address: '', region: '', city: '', deliveryLocation: 'Home delivery', notes: '' };
   });
   const [submitting, setSubmitting] = useState(false);
-  const [isPaystackReady, setIsPaystackReady] = useState(false);
 
   useEffect(() => {
-    const script = document.createElement('script');
-    script.src = 'https://js.paystack.co/v1/inline.js';
-    script.async = true;
-    script.onload = () => setIsPaystackReady(true);
-    document.body.appendChild(script);
-
-    return () => {
-      document.body.removeChild(script);
+    if (!reference) return;
+    const finalizeRedirectedPayment = async () => {
+      try {
+        const verification = await axios.get(`/api/payments/verify/${encodeURIComponent(reference)}`, { withCredentials: true });
+        if (verification.data.data?.status !== 'success') throw new Error('Payment verification failed');
+        await axios.post('/api/orders', { ...form, items: cart.map((item) => ({ productId: item.id, quantity: item.quantity })), paymentReference: reference }, { withCredentials: true });
+        clearCart();
+        alert('Payment successful and order placed.');
+        navigate('/shop', { replace: true });
+      } catch (error) {
+        console.error('[payment] Redirect verification failed:', error);
+        alert(error.response?.data?.message || 'Unable to verify your payment. Please contact support.');
+      }
     };
-  }, []);
+    finalizeRedirectedPayment();
+  }, [reference]);
 
   const handleChange = (event) => {
     const { name, value } = event.target;
@@ -64,42 +70,12 @@ function PaystackCheckoutPage() {
       return;
     }
 
-    if (!window.PaystackPop) {
-      alert('Paystack is still loading. Please wait a moment and try again.');
-      return;
-    }
-
-    const payload = {
-      key: paystackKey,
-      email: form.email,
-      amount: Math.round(Number(subtotal) * 100),
-      currency: 'GHS',
-      ref: `els-${Date.now()}`,
-      metadata: {
-        custom_fields: [{ display_name: 'Customer', variable_name: 'customer', value: form.customerName }],
-      },
-      callback: async (response) => {
-        try {
-          await axios.post('/api/orders', {
-            ...form,
-            items: cart.map((item) => ({ productId: item.id, quantity: item.quantity })),
-            paymentReference: response.reference,
-          }, { withCredentials: true });
-          clearCart();
-          alert('Payment successful and order placed.');
-          navigate('/shop');
-        } catch (error) {
-          console.error(error);
-          alert('Payment succeeded but order save failed. Please contact support.');
-        }
-      },
-      onClose: () => {
-        alert('Payment window closed. Your order was not completed.');
-      },
-    };
-
-    const handler = window.PaystackPop.setup(payload);
-    handler.openIframe();
+    const paymentReference = `els-${Date.now()}`;
+    sessionStorage.setItem(checkoutDraftKey, JSON.stringify(form));
+    console.log('[payment] Requesting Paystack authorization URL:', { amount: subtotal, email: form.email, reference: paymentReference });
+    const response = await axios.post('/api/payment', { amount: Math.round(Number(subtotal) * 100), email: form.email, reference: paymentReference }, { withCredentials: true });
+    console.log('[payment] Authorization URL received:', response.data.data?.authorization_url);
+    window.location.assign(response.data.data.authorization_url);
   };
 
   const handleSubmit = async (event) => {
@@ -160,8 +136,8 @@ function PaystackCheckoutPage() {
             <span>GHC {subtotal}</span>
           </div>
 
-          <button type="submit" disabled={submitting || !isPaystackReady} className="mt-8 w-full rounded-md bg-[#5b2b45] px-4 py-3 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60">
-            {submitting ? 'PROCESSING...' : !isPaystackReady ? 'LOADING PAYSTACK...' : 'PAY WITH PAYSTACK'}
+          <button type="submit" disabled={submitting} className="mt-8 w-full rounded-md bg-[#5b2b45] px-4 py-3 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60">
+            {submitting ? 'PROCESSING...' : 'CONTINUE TO PAYSTACK'}
           </button>
         </div>
       </form>

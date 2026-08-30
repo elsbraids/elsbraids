@@ -20,6 +20,39 @@ const { isDatabaseReady } = require('../utils/database');
 const authLimiter = rateLimit({ windowMs: 15 * 60 * 1000, limit: 10, standardHeaders: true, legacyHeaders: false, message: { message: 'Too many authentication attempts. Please try again later.' } });
 const actionLimiter = rateLimit({ windowMs: 15 * 60 * 1000, limit: 20, standardHeaders: true, legacyHeaders: false, message: { message: 'Too many requests. Please try again later.' } });
 
+router.post('/payment', customerProtect, actionLimiter, async (req, res) => {
+  const { amount, email, reference } = req.body || {};
+  const numericAmount = Number(amount);
+  const customerEmail = String(email || req.customer.email).trim().toLowerCase();
+  const paymentReference = String(reference || `els-${Date.now()}`).trim();
+  if (!Number.isFinite(numericAmount) || numericAmount <= 0 || !isEmail(customerEmail) || paymentReference.length > 100) {
+    return res.status(400).json({ success: false, message: 'Valid payment amount, email, and reference are required.' });
+  }
+  if (customerEmail !== req.customer.email.toLowerCase()) return res.status(400).json({ success: false, message: 'Payment email must match the signed-in customer.' });
+  if (!process.env.PAYSTACK_SECRET_KEY) {
+    console.error('[payment] PAYSTACK_SECRET_KEY is not configured');
+    return res.status(503).json({ success: false, message: 'Paystack payment service is not configured.' });
+  }
+  try {
+    console.log('[payment] Initializing Paystack payment:', { amount: numericAmount, email: customerEmail, reference: paymentReference });
+    const response = await fetch('https://api.paystack.co/transaction/initialize', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${process.env.PAYSTACK_SECRET_KEY}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ amount: Math.round(numericAmount), email: customerEmail, reference: paymentReference, currency: 'GHS', callback_url: `${process.env.CLIENT_URL || 'http://localhost:5173'}/checkout` }),
+    });
+    const payload = await response.json();
+    if (!response.ok || !payload.status || !payload.data?.authorization_url) {
+      console.error('[payment] Paystack initialization failed:', payload);
+      return res.status(502).json({ success: false, message: payload.message || 'Unable to initialize Paystack payment.' });
+    }
+    console.log('[payment] Paystack payment initialized:', { reference: paymentReference });
+    return res.json({ success: true, data: { authorization_url: payload.data.authorization_url, access_code: payload.data.access_code, reference: payload.data.reference } });
+  } catch (error) {
+    console.error('[payment] Paystack request failed:', error.message);
+    return res.status(502).json({ success: false, message: 'Unable to communicate with Paystack.' });
+  }
+});
+
 const createCustomerToken = (customer) => jwt.sign(
   { sub: customer.id, role: 'customer', email: customer.email },
   getJwtSecret(),
