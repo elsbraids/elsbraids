@@ -101,7 +101,7 @@ function ShopPage() {
                 </div>
                 <div className="mt-4 flex gap-3">
                   <Link
-                    to={`/products/${product.id}`}
+                    to={`/products/${product.id || product._id}`}
                     className="flex-1 rounded-full border border-white/50 px-4 py-2.5 text-center text-sm font-semibold text-white backdrop-blur-sm transition hover:bg-white/20"
                   >
                     Details
