@@ -11,6 +11,8 @@ function HomePage() {
   const [services, setServices] = useState([]);
   const [settings, setSettings] = useState({});
   const [settingsLoading, setSettingsLoading] = useState(true);
+  const [servicesLoading, setServicesLoading] = useState(true);
+  const [servicesError, setServicesError] = useState(false);
   const [activeHeroSlide, setActiveHeroSlide] = useState(0);
   const [touchImageId, setTouchImageId] = useState(null);
   const uploadedHeroImages = settings.heroImages?.filter(Boolean) || [];
@@ -43,8 +45,10 @@ function HomePage() {
         setSettings(settingsRes.data.data || {});
       } catch (error) {
         console.error('Failed to load home data', error);
+        setServicesError(true);
       } finally {
         setSettingsLoading(false);
+        setServicesLoading(false);
       }
     };
     fetchData();
@@ -137,7 +141,9 @@ function HomePage() {
           <h2 className="mt-3 text-3xl font-bold text-[#5b2b45]">Signature beauty care</h2>
         </div>
 
-        <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
+        {servicesLoading && <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3"><div className="h-[340px] animate-pulse rounded-[1.5rem] bg-[#eadde2]" /><div className="h-[340px] animate-pulse rounded-[1.5rem] bg-[#eadde2]" /><div className="h-[340px] animate-pulse rounded-[1.5rem] bg-[#eadde2]" /></div>}
+        {servicesError && <p className="py-8 text-center text-red-700">Unable to load services. Please refresh and try again.</p>}
+        {!servicesLoading && !servicesError && <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
           {services.map((service, idx) => {
             const bgImg = service.images?.[0] || serviceFallbackImage;
             const alternateImg = service.images?.[1] || bgImg;
@@ -175,7 +181,7 @@ function HomePage() {
               </div>
             );
           })}
-        </div>
+        </div>}
       </section>
     </div>
   );

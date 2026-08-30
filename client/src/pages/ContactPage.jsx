@@ -4,6 +4,7 @@ import axios from 'axios';
 function ContactPage() {
   const [form, setForm] = useState({ name: '', email: '', phone: '', message: '' });
   const [settings, setSettings] = useState({});
+  const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [sent, setSent] = useState(false);
   const location = String(settings.location || 'Atonsu, Kumasi, Ghana').replace(/Atomsu/gi, 'Atonsu');
@@ -15,7 +16,7 @@ function ContactPage() {
     : `https://www.google.com/maps?q=${encodeURIComponent(mapQuery)}&z=14&output=embed`);
 
   useEffect(() => {
-    axios.get('/api/settings').then((response) => setSettings(response.data.data || {})).catch(console.error);
+    axios.get('/api/settings').then((response) => setSettings(response.data.data || {})).catch(console.error).finally(() => setLoading(false));
   }, []);
 
   const handleSubmit = async (e) => {
@@ -37,7 +38,7 @@ function ContactPage() {
     <div>
       {/* ── HERO ── */}
       <section className="relative overflow-hidden" style={{ minHeight: '260px' }}>
-        <img
+        {loading ? <div className="absolute inset-0 animate-pulse bg-[#eadde2]" aria-label="Loading contact image" /> : <img
           src={settings.heroImages?.find(Boolean) || '/hero_braids.jpg'}
           alt="Contact EL'S BRAIDS beauty salon"
           onError={(event) => {
@@ -45,7 +46,7 @@ function ContactPage() {
             event.currentTarget.src = '/hero_braids.jpg';
           }}
           className="absolute inset-0 h-full w-full object-cover object-center"
-        />
+        />}
         <div className="absolute inset-0 bg-gradient-to-b from-black/60 via-black/50 to-[#f9efef]" />
         <div className="relative mx-auto flex min-h-[260px] max-w-7xl items-end px-4 pb-8 sm:px-6 lg:px-8">
           <div className="text-white">

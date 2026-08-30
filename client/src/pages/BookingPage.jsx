@@ -43,6 +43,7 @@ function BookingPage() {
   
   // Data Loading and Core states
   const [services, setServices] = useState([]);
+  const [settings, setSettings] = useState({});
   const [isLoadingServices, setIsLoadingServices] = useState(true);
   const [selectedServiceId, setSelectedServiceId] = useState(searchParams.get('service') || '');
   const [mapQuery, setMapQuery] = useState('Atonsu, Kumasi, Ghana');
@@ -102,6 +103,9 @@ function BookingPage() {
 
   // Fetch Services from database
   useEffect(() => {
+    // Fetch settings for dynamic hero image
+    axios.get('/api/settings').then((res) => setSettings(res.data.data || {})).catch(console.error);
+
     setIsLoadingServices(true);
     axios.get('/api/services')
       .then((res) => {
@@ -347,18 +351,20 @@ function BookingPage() {
 
   return (
     <div className="min-h-screen bg-[#f9efef]/40">
-      {/* ── HERO BANNER ── */}
-      <section className="border-b border-blush/60 bg-gradient-to-br from-cream via-[#fffafc] to-rose/10">
-        <div className="mx-auto max-w-6xl px-4 py-12 sm:px-6 lg:px-8">
-          <span className="inline-flex items-center gap-1.5 rounded-full bg-[#f9eaf1] px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-mauve">
-            <Sparkles className="h-3 w-3" /> Book Appointment
-          </span>
-          <h1 className="mt-3 text-4xl font-extrabold tracking-tight text-plum sm:text-5xl">
-            Make it <span className="font-['Twinkle_Star',cursive] font-normal normal-case text-mauve">yours</span>
-          </h1>
-          <p className="mt-3 max-w-2xl text-sm leading-relaxed text-charcoal/80 sm:text-base">
-            Select your preferred braiding service, reserve your date and time, and specify details. Our master braiders are ready to style you.
-          </p>
+      {/* ── HERO ── */}
+      <section className="relative overflow-hidden" style={{ minHeight: '260px' }}>
+        <img
+          src={settings.heroImages?.find(Boolean) || '/hero_braids.jpg'}
+          alt="Book an appointment at EL'S BRAIDS"
+          onError={(e) => { e.currentTarget.onerror = null; e.currentTarget.src = '/hero_braids.jpg'; }}
+          className="absolute inset-0 h-full w-full object-cover object-center"
+        />
+        <div className="absolute inset-0 bg-gradient-to-b from-black/60 via-black/50 to-[#f9efef]" />
+        <div className="relative mx-auto flex min-h-[260px] max-w-7xl items-end px-4 pb-8 sm:px-6 lg:px-8">
+          <div className="text-white">
+            <p className="text-xs font-semibold uppercase tracking-[0.28em] text-[#f8dbe8]">Book Appointment</p>
+            <h1 className="mt-2 font-['Caveat',cursive] text-5xl font-bold sm:text-6xl">Make It Yours</h1>
+          </div>
         </div>
       </section>
 

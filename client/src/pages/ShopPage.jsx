@@ -11,6 +11,7 @@ function ShopPage() {
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState(false);
   const [settings, setSettings] = useState({});
+  const [settingsLoading, setSettingsLoading] = useState(true);
   const [addedProductId, setAddedProductId] = useState(null);
   const [activeCategory, setActiveCategory] = useState('All');
   const { addToCart } = useCart();
@@ -22,7 +23,10 @@ function ShopPage() {
         setSettings(settingsRes.data.data || {});
       })
       .catch(() => setLoadError(true))
-      .finally(() => setLoading(false));
+      .finally(() => {
+        setLoading(false);
+        setSettingsLoading(false);
+      });
   }, []);
 
   const categories = ['All', ...new Set(products.map((product) => product.category).filter(Boolean))];
@@ -35,11 +39,11 @@ function ShopPage() {
     <div>
       {/* ── HERO ── */}
       <section className="relative overflow-hidden" style={{ minHeight: '260px' }}>
-        <img
+        {settingsLoading ? <div className="absolute inset-0 animate-pulse bg-[#eadde2]" aria-label="Loading shop image" /> : <img
           src={heroImage}
           alt="African beauty & hair care products at EL'S BRAIDS shop"
           className="absolute inset-0 h-full w-full object-cover object-center"
-        />
+        />}
         <div className="absolute inset-0 bg-gradient-to-b from-black/60 via-black/50 to-[#f9efef]" />
         <div className="relative mx-auto flex min-h-[260px] max-w-7xl items-end px-4 pb-8 sm:px-6 lg:px-8">
           <div className="text-white">

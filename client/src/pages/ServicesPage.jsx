@@ -8,6 +8,8 @@ const fallbackImage = '/hero_braids.jpg';
 function ServicesPage() {
   const [services, setServices] = useState([]);
   const [settings, setSettings] = useState({});
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
   const [activeCategory, setActiveCategory] = useState('All');
   const [touchImageId, setTouchImageId] = useState(null);
 
@@ -17,7 +19,11 @@ function ServicesPage() {
         setServices(servicesRes.data.data || []);
         setSettings(settingsRes.data.data || {});
       })
-      .catch(console.error);
+      .catch((error) => {
+        console.error(error);
+        setLoadError(true);
+      })
+      .finally(() => setLoading(false));
   }, []);
 
   const heroImage = settings.heroImages?.find(Boolean) || fallbackImage;
@@ -31,15 +37,7 @@ function ServicesPage() {
     <div>
       {/* ── HERO ── */}
       <section className="relative overflow-hidden" style={{ minHeight: '260px' }}>
-        <img
-          src={heroImage}
-          alt="EL'S BRAIDS professional braiding services"
-          onError={(event) => {
-            event.currentTarget.onerror = null;
-            event.currentTarget.src = fallbackImage;
-          }}
-          className="absolute inset-0 h-full w-full object-cover object-center"
-        />
+        {loading ? <div className="absolute inset-0 animate-pulse bg-[#eadde2]" aria-label="Loading services image" /> : <img src={heroImage} alt="EL'S BRAIDS professional braiding services" onError={(event) => { event.currentTarget.onerror = null; event.currentTarget.style.display = 'none'; }} className="absolute inset-0 h-full w-full object-cover object-center" />}
         <div className="absolute inset-0 bg-gradient-to-b from-black/60 via-black/50 to-[#f9efef]" />
         <div className="relative mx-auto flex min-h-[260px] max-w-7xl items-end px-4 pb-8 sm:px-6 lg:px-8">
           <div className="text-white">
@@ -51,10 +49,12 @@ function ServicesPage() {
 
       <div className="mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-8">
 
-      <div className="mb-8 flex flex-wrap gap-3">
+      {loading && <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3"><div className="h-[340px] animate-pulse rounded-[1.5rem] bg-[#eadde2]" /><div className="h-[340px] animate-pulse rounded-[1.5rem] bg-[#eadde2]" /><div className="h-[340px] animate-pulse rounded-[1.5rem] bg-[#eadde2]" /></div>}
+      {loadError && <p className="py-8 text-center text-red-700">Unable to load services. Please refresh and try again.</p>}
+      {!loading && !loadError && <div className="mb-8 flex flex-wrap gap-3">
         {categories.map((category) => <button key={category} type="button" onClick={() => setActiveCategory(category)} className={`rounded-full px-4 py-2 text-sm font-semibold ${activeCategory === category ? 'bg-[#5b2b45] text-white' : 'border border-[#d9bcc7] bg-white text-[#5b2b45]'}`}>{category}</button>)}
-      </div>
-      <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
+      </div>}
+      {!loading && !loadError && <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
         {visibleServices.map((service) => {
           const bgImg = service.images?.[0] || fallbackImage;
           const alternateImg = service.images?.[1] || bgImg;
@@ -88,7 +88,7 @@ function ServicesPage() {
             </div>
           );
         })}
-      </div>
+      </div>}
       </div>
     </div>
   );

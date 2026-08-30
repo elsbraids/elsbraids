@@ -3,9 +3,10 @@ import axios from 'axios';
 
 function AboutPage() {
   const [settings, setSettings] = useState({});
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    axios.get('/api/settings').then((response) => setSettings(response.data.data || {})).catch(console.error);
+    axios.get('/api/settings').then((response) => setSettings(response.data.data || {})).catch(console.error).finally(() => setLoading(false));
   }, []);
 
   const heroImage = settings.heroImages?.find(Boolean) || '/hero_braids.jpg';
@@ -14,7 +15,7 @@ function AboutPage() {
     <div>
       {/* ── HERO ── */}
       <section className="relative overflow-hidden" style={{ minHeight: '260px' }}>
-        <img
+        {loading ? <div className="absolute inset-0 animate-pulse bg-[#eadde2]" aria-label="Loading about image" /> : <img
           src={heroImage}
           alt="About EL'S BRAIDS beauty studio"
           onError={(event) => {
@@ -22,7 +23,7 @@ function AboutPage() {
             event.currentTarget.src = '/hero_braids.jpg';
           }}
           className="absolute inset-0 h-full w-full object-cover object-center"
-        />
+        />}
         <div className="absolute inset-0 bg-gradient-to-b from-black/60 via-black/50 to-[#f9efef]" />
         <div className="relative mx-auto flex min-h-[260px] max-w-7xl items-end px-4 pb-8 sm:px-6 lg:px-8">
           <div className="text-white">

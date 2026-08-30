@@ -6,12 +6,18 @@ import { Clock3, Check } from 'lucide-react';
 function ServiceDetailsPage() {
   const { id } = useParams();
   const [service, setService] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
 
   useEffect(() => {
-    axios.get(`/api/services/${id}`).then((res) => setService(res.data.data)).catch(console.error);
+    axios.get(`/api/services/${id}`).then((res) => setService(res.data.data)).catch((error) => {
+      console.error(error);
+      setLoadError(true);
+    }).finally(() => setLoading(false));
   }, [id]);
 
-  if (!service) return <div className="mx-auto max-w-7xl px-4 py-12">Loading...</div>;
+  if (loading) return <div className="mx-auto max-w-7xl px-4 py-12"><div className="h-[540px] animate-pulse rounded-[2rem] bg-[#eadde2]" aria-label="Loading service" /></div>;
+  if (loadError || !service) return <div className="mx-auto max-w-7xl px-4 py-12 text-center text-red-700">Unable to load this service.</div>;
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-8">
