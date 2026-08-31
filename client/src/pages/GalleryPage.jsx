@@ -14,6 +14,12 @@ function GalleryPage() {
   const [viewingItem, setViewingItem] = useState(null);
 
   useEffect(() => {
+    document.title = "Gallery | EL'S BRAIDS";
+    let metaDesc = document.querySelector('meta[name="description"]');
+    if (metaDesc) metaDesc.setAttribute('content', "Browse EL'S BRAIDS gallery of recent hairstyles, braids, curls, and piercings.");
+  }, []);
+
+  useEffect(() => {
     Promise.all([axios.get('/api/gallery'), axios.get('/api/settings')])
       .then(([galleryRes, settingsRes]) => {
         setItems(galleryRes.data.data || []);
@@ -44,8 +50,10 @@ function GalleryPage() {
       {/* ── HERO ── */}
       <section className="relative overflow-hidden" style={{ minHeight: '260px' }}>
         {loading ? <div className="absolute inset-0 animate-pulse bg-[#eadde2]" aria-label="Loading gallery image" /> : <img
-          src={optimizeImageUrl(fallbackImage, 1600)}
+          src={optimizeImageUrl(fallbackImage, 800)}
           alt="EL'S BRAIDS beauty gallery"
+          loading="lazy"
+          decoding="async"
           onError={(event) => {
             handleImageError(event, fallbackImage);
           }}
@@ -78,7 +86,7 @@ function GalleryPage() {
         {!loading && !loadError && <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
           {filtered.map((item) => (
             <div key={item.id} className="group relative min-h-[360px] overflow-hidden rounded-[1.5rem] shadow-lg">
-              <img src={optimizeImageUrl(item.image || fallbackImage)} alt={item.title} onError={(event) => handleImageError(event, fallbackImage)} loading="lazy" className="absolute inset-0 h-full w-full object-cover transition-transform duration-700 group-hover:scale-105" />
+              <img src={optimizeImageUrl(item.image || fallbackImage, 600)} alt={item.title} onError={(event) => handleImageError(event, fallbackImage)} loading="lazy" decoding="async" className="absolute inset-0 h-full w-full object-cover transition-transform duration-700 group-hover:scale-105" />
               <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/35 to-transparent" />
               <div className="absolute inset-x-0 bottom-0 p-5 text-white">
                 <p className="text-xs font-semibold uppercase tracking-[0.2em] text-[#f8dbe8]">{item.category}</p>

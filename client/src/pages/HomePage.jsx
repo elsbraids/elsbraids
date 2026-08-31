@@ -42,6 +42,12 @@ function HomePage() {
   }, [displayedHeroSlides.length]);
 
   useEffect(() => {
+    document.title = "EL'S BRAIDS | Premium Beauty Studio in Kumasi, Ghana";
+    let metaDesc = document.querySelector('meta[name="description"]');
+    if (metaDesc) metaDesc.setAttribute('content', "EL'S BRAIDS is a premium braiding and beauty studio in Kumasi, Ghana. Book appointments for braids, curls, piercings and more.");
+  }, []);
+
+  useEffect(() => {
     const fetchData = async () => {
       try {
         const [servicesRes, settingsRes] = await Promise.all([

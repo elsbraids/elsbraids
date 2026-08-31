@@ -48,7 +48,7 @@ function CartPage() {
               </div>
             ) : cart.map((item) => (
               <div key={item.id} className="relative grid min-w-0 grid-cols-[88px_minmax(0,1fr)] gap-4 rounded-[1.5rem] border border-[#ead4dd] bg-[#fffafc] p-4 shadow-soft sm:grid-cols-[112px_minmax(0,1fr)_auto] sm:items-center">
-                <img src={optimizeImageUrl(item.images?.[0] || '/hero_braids.jpg')} alt={item.name} onError={(event) => handleImageError(event)} loading="lazy" className="h-[88px] w-[88px] rounded-xl object-cover sm:h-28 sm:w-28" />
+                <img src={optimizeImageUrl(item.images?.[0] || '/hero_braids.jpg', 200)} alt={item.name} onError={(event) => handleImageError(event)} loading="lazy" decoding="async" className="h-[88px] w-[88px] rounded-xl object-cover sm:h-28 sm:w-28" />
                 <div className="min-w-0 pr-8 sm:pr-0">
                   <h3 className="truncate text-lg font-semibold text-[#5b2b45] sm:text-xl">{item.name}</h3>
                   <p className="mt-1 text-sm text-[#5f4253]">GHC {item.price}</p>

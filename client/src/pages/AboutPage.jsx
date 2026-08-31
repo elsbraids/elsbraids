@@ -7,6 +7,12 @@ function AboutPage() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    document.title = "About Us | EL'S BRAIDS";
+    let metaDesc = document.querySelector('meta[name="description"]');
+    if (metaDesc) metaDesc.setAttribute('content', "Learn about EL'S BRAIDS - a premium beauty studio in Kumasi, Ghana, specialising in braiding, piercing and beauty care.");
+  }, []);
+
+  useEffect(() => {
     axios.get('/api/settings').then((response) => setSettings(response.data.data || {})).catch(console.error).finally(() => setLoading(false));
   }, []);
 
@@ -17,8 +23,10 @@ function AboutPage() {
       {/* ── HERO ── */}
       <section className="relative overflow-hidden" style={{ minHeight: '260px' }}>
         {loading ? <div className="absolute inset-0 animate-pulse bg-[#eadde2]" aria-label="Loading about image" /> : <img
-          src={optimizeImageUrl(heroImage, 1600)}
+          src={optimizeImageUrl(heroImage, 800)}
           alt="About EL'S BRAIDS beauty studio"
+          loading="lazy"
+          decoding="async"
           onError={(event) => {
             handleImageError(event)
           }}

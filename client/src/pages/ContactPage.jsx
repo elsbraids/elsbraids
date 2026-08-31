@@ -17,6 +17,12 @@ function ContactPage() {
     : `https://www.google.com/maps?q=${encodeURIComponent(mapQuery)}&z=14&output=embed`);
 
   useEffect(() => {
+    document.title = "Contact | EL'S BRAIDS";
+    let metaDesc = document.querySelector('meta[name="description"]');
+    if (metaDesc) metaDesc.setAttribute('content', "Get in touch with EL'S BRAIDS. Find our location in Kumasi, Ghana, book an appointment, or send us a message.");
+  }, []);
+
+  useEffect(() => {
     axios.get('/api/settings').then((response) => setSettings(response.data.data || {})).catch(console.error).finally(() => setLoading(false));
   }, []);
 
@@ -40,8 +46,10 @@ function ContactPage() {
       {/* ── HERO ── */}
       <section className="relative overflow-hidden" style={{ minHeight: '260px' }}>
         {loading ? <div className="absolute inset-0 animate-pulse bg-[#eadde2]" aria-label="Loading contact image" /> : <img
-          src={optimizeImageUrl(settings.heroImages?.find(Boolean) || '/hero_braids.jpg', 1600)}
+          src={optimizeImageUrl(settings.heroImages?.find(Boolean) || '/hero_braids.jpg', 800)}
           alt="Contact EL'S BRAIDS beauty salon"
+          loading="lazy"
+          decoding="async"
           onError={(event) => {
             handleImageError(event)
           }}

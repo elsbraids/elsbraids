@@ -18,6 +18,12 @@ function ShopPage() {
   const { addToCart } = useCart();
 
   useEffect(() => {
+    document.title = "Shop | EL'S BRAIDS";
+    let metaDesc = document.querySelector('meta[name="description"]');
+    if (metaDesc) metaDesc.setAttribute('content', "Shop premium beauty and hair care products from EL'S BRAIDS in Kumasi, Ghana.");
+  }, []);
+
+  useEffect(() => {
     Promise.all([axios.get('/api/products'), axios.get('/api/settings')])
       .then(([productsRes, settingsRes]) => {
         setProducts((productsRes.data.data || []).filter((product) => product.isActive !== false));
@@ -41,8 +47,10 @@ function ShopPage() {
       {/* ── HERO ── */}
       <section className="relative overflow-hidden" style={{ minHeight: '260px' }}>
         {settingsLoading ? <div className="absolute inset-0 animate-pulse bg-[#eadde2]" aria-label="Loading shop image" /> : <img
-          src={optimizeImageUrl(heroImage, 1600)}
+          src={optimizeImageUrl(heroImage, 800)}
           alt="African beauty & hair care products at EL'S BRAIDS shop"
+          loading="lazy"
+          decoding="async"
           onError={(event) => handleImageError(event, fallbackImage)}
           className="absolute inset-0 h-full w-full object-cover object-center"
         />}
@@ -75,10 +83,11 @@ function ShopPage() {
             >
               {/* Background image */}
               <img
-                src={optimizeImageUrl(bgImg)}
+                src={optimizeImageUrl(bgImg, 600)}
                 alt={product.name}
                 onError={(event) => handleImageError(event, fallbackImage)}
                 loading="lazy"
+                decoding="async"
                 className="absolute inset-0 h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
               />
               {/* Gradient overlay — text always readable */}

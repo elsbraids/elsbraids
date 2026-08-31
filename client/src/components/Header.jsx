@@ -38,7 +38,7 @@ function Header() {
     <header className="sticky top-0 z-50 border-b border-[#e9d6df] bg-[#f7e7ee]/95 backdrop-blur-sm">
       <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-4 sm:px-6 lg:px-8">
         <Link to="/" className="flex items-center gap-3">
-          {settingsLoading ? <div className="h-10 w-10 animate-pulse rounded-full bg-[#eadde2]" aria-label="Loading logo" /> : settings.logo ? <img src={optimizeImageUrl(settings.logo, 160)} alt="EL'S BRAIDS logo" onError={(event) => handleImageError(event)} loading="lazy" className="h-10 w-10 rounded-full object-cover" /> : <div className="flex h-10 w-10 items-center justify-center rounded-full border border-[#7a3855] bg-[#f3dbe7] text-[#5b2b45]"><span className="text-lg font-semibold">E</span></div>}
+          {settingsLoading ? <div className="h-10 w-10 animate-pulse rounded-full bg-[#eadde2]" aria-label="Loading logo" /> : settings.logo ? <img src={optimizeImageUrl(settings.logo, 80)} alt="EL'S BRAIDS logo" onError={(event) => handleImageError(event)} width="40" height="40" decoding="async" className="h-10 w-10 rounded-full object-cover" /> : <div className="flex h-10 w-10 items-center justify-center rounded-full border border-[#7a3855] bg-[#f3dbe7] text-[#5b2b45]"><span className="text-lg font-semibold">E</span></div>}
           <div>
             <div className="font-['Twinkle_Star',cursive] text-3xl font-bold uppercase leading-none text-[#5b2b45]">EL'S</div>
             <div className="font-['Twinkle_Star',cursive] text-sm font-bold uppercase tracking-[0.12em] text-[#7a3855]">Braids</div>
