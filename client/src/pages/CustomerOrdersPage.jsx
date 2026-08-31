@@ -6,6 +6,7 @@ import { handleImageError, optimizeImageUrl } from '../utils/image';
 
 function CustomerOrdersPage() {
   const [orders, setOrders] = useState([]);
+  const [bookings, setBookings] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [settings, setSettings] = useState({});
@@ -18,9 +19,23 @@ function CustomerOrdersPage() {
 
   useEffect(() => {
     axios.get('/api/settings').then((res) => setSettings(res.data.data || {})).catch(console.error);
-    axios.get('/api/customers/me/orders', { withCredentials: true })
-      .then((response) => setOrders(response.data.data || []))
-      .catch(() => setError('Please sign in to view your orders.'))
+
+    Promise.all([
+      axios.get('/api/customers/me/orders', { withCredentials: true }),
+      axios.get('/api/customers/me/bookings', { withCredentials: true }),
+    ])
+      .then(([ordersResponse, bookingsResponse]) => {
+        console.log('[customer-bookings] fetched orders and bookings', {
+          orders: ordersResponse.data?.data || [],
+          bookings: bookingsResponse.data?.data || [],
+        });
+        setOrders(ordersResponse.data.data || []);
+        setBookings(bookingsResponse.data.data || []);
+      })
+      .catch((requestError) => {
+        console.error('[customer-bookings] load failed', requestError);
+        setError('Please sign in to view your orders and bookings.');
+      })
       .finally(() => setLoading(false));
   }, []);
 
@@ -101,6 +116,49 @@ function CustomerOrdersPage() {
                 </div>
               </article>
             ))}
+          </div>
+        )}
+
+        {!loading && !error && bookings.length > 0 && (
+          <div className="mt-10">
+            <h2 className="mb-4 text-2xl font-black uppercase text-[#5b2b45]">My Bookings</h2>
+            <div className="space-y-5">
+              {bookings.map((booking) => (
+                <article key={booking.id || booking._id} className="rounded-2xl border border-[#ead4dd] bg-white p-6 shadow-soft">
+                  <div className="flex flex-wrap justify-between gap-3 border-b border-[#f0dfe5] pb-4">
+                    <div>
+                      <h3 className="font-bold text-[#5b2b45]">{booking.serviceName}</h3>
+                      <p className="mt-1 text-xs text-[#7a3855]">{booking.date} at {booking.time}</p>
+                    </div>
+                    <span className="rounded-full bg-[#f3dfe8] px-3 py-1 text-xs font-bold uppercase text-[#5b2b45]">{booking.status || 'Pending'}</span>
+                  </div>
+
+                  <div className="mt-4 space-y-3 text-sm text-[#5f4253]">
+                    <p><span className="font-semibold text-[#5b2b45]">Location:</span> {booking.location || 'Atonsu, Kumasi, Ghana'}</p>
+                    <p><span className="font-semibold text-[#5b2b45]">Phone:</span> {booking.phone}</p>
+                  </div>
+
+                  <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                    {[booking.bookingImage1, booking.bookingImage2].filter(Boolean).length ? (
+                      [booking.bookingImage1, booking.bookingImage2].filter(Boolean).map((image, index) => (
+                        <img
+                          key={`${booking.id || booking._id}-image-${index}`}
+                          src={optimizeImageUrl(image, 1200)}
+                          alt={`${booking.serviceName} preview ${index + 1}`}
+                          onError={(event) => handleImageError(event)}
+                          className="h-52 w-full rounded-xl object-cover"
+                          loading="lazy"
+                        />
+                      ))
+                    ) : (
+                      <div className="col-span-full rounded-xl border border-dashed border-[#ead4dd] bg-[#fffafc] p-6 text-center text-sm text-[#5f4253]">
+                        No booking photos uploaded yet.
+                      </div>
+                    )}
+                  </div>
+                </article>
+              ))}
+            </div>
           </div>
         )}
       </div>

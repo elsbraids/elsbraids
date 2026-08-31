@@ -50,6 +50,8 @@ const bookingSchema = new mongoose.Schema(
     date: { type: String, required: true },
     time: { type: String, required: true },
     notes: { type: String, default: '' },
+    bookingImage1: { type: String, default: '' },
+    bookingImage2: { type: String, default: '' },
     status: { type: String, enum: ['Pending', 'Confirmed', 'Completed', 'Cancelled'], default: 'Pending' },
   },
   { timestamps: true },

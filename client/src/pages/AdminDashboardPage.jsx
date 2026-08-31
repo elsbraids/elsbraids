@@ -661,6 +661,62 @@ function AdminDashboardPage() {
     }));
   };
 
+  const uploadBookingImage = async (bookingId, field) => {
+    if (!cloudinaryCloudName || !cloudinaryUploadPreset) {
+      alert("Cloudinary upload is not configured.");
+      return;
+    }
+    if (!window.cloudinary?.openUploadWidget) {
+      alert("Cloudinary is still loading. Please try again in a moment.");
+      return;
+    }
+
+    console.log("[booking-images] opening Cloudinary upload", { bookingId, field });
+    window.cloudinary.openUploadWidget(
+      {
+        cloudName: cloudinaryCloudName,
+        uploadPreset: cloudinaryUploadPreset,
+        sources: ["local", "url"],
+        multiple: false,
+        maxFiles: 1,
+        folder: "els-braids/bookings",
+      },
+      async (error, result) => {
+        if (error) {
+          console.error("[booking-images] Cloudinary upload error", error);
+          alert("Unable to upload booking image to Cloudinary.");
+          return;
+        }
+
+        const secureUrl = result?.event === "success" ? result.info?.secure_url : null;
+        if (!secureUrl || !secureUrl.startsWith("https://res.cloudinary.com/")) {
+          console.error("[booking-images] invalid secure_url", result);
+          alert("Cloudinary returned an invalid booking image URL.");
+          return;
+        }
+
+        console.log("[booking-images] secure_url received", { bookingId, field, secureUrl });
+
+        try {
+          const response = await axios.put(
+            `/api/admin/bookings/${bookingId}`,
+            { [field]: secureUrl },
+            authConfig(),
+          );
+
+          const savedBooking = response.data.data;
+          console.log("[booking-images] booking image saved", { bookingId, field, savedBooking });
+
+          setAllBookings((bookings) => bookings.map((booking) => (booking.id === bookingId ? { ...booking, ...savedBooking } : booking)));
+          setRecentBookings((bookings) => bookings.map((booking) => (booking.id === bookingId ? { ...booking, ...savedBooking } : booking)));
+        } catch (uploadError) {
+          console.error("[booking-images] failed to persist booking image", uploadError);
+          alert("Booking image upload succeeded, but saving to the booking failed.");
+        }
+      },
+    );
+  };
+
   const deleteGalleryImage = async (item) => {
     if (
       !window.confirm(
@@ -732,18 +788,54 @@ function AdminDashboardPage() {
                     </a>
                   </td>
                   <td className="py-4">
-                    <select
-                      value={booking.status}
-                      onChange={(event) =>
-                        updateBookingStatus(booking.id, event.target.value)
-                      }
-                      className="rounded-md border border-[#ead4dd] bg-white px-2 py-1 text-xs font-semibold text-[#5b2b45]"
-                    >
-                      <option>Pending</option>
-                      <option>Confirmed</option>
-                      <option>Completed</option>
-                      <option>Cancelled</option>
-                    </select>
+                    <div className="space-y-3">
+                      <select
+                        value={booking.status}
+                        onChange={(event) =>
+                          updateBookingStatus(booking.id, event.target.value)
+                        }
+                        className="rounded-md border border-[#ead4dd] bg-white px-2 py-1 text-xs font-semibold text-[#5b2b45]"
+                      >
+                        <option>Pending</option>
+                        <option>Confirmed</option>
+                        <option>Completed</option>
+                        <option>Cancelled</option>
+                      </select>
+
+                      <div className="grid grid-cols-2 gap-2">
+                        <div className="rounded-lg border border-dashed border-[#ead4dd] bg-white p-2">
+                          <div className="mb-2 text-[10px] font-bold uppercase tracking-[0.2em] text-[#7a3855]">Image 1</div>
+                          <button
+                            type="button"
+                            onClick={() => uploadBookingImage(booking.id, "bookingImage1")}
+                            className="mb-2 rounded-md bg-[#5b2b45] px-2 py-1 text-[10px] font-semibold text-white"
+                          >
+                            Upload
+                          </button>
+                          {booking.bookingImage1 ? (
+                            <img src={optimizeImageUrl(booking.bookingImage1)} alt="booking image 1" onError={(event) => handleImageError(event)} loading="lazy" className="h-16 w-full rounded object-cover" />
+                          ) : (
+                            <div className="flex h-16 w-full items-center justify-center rounded bg-[#f9eef2] text-[10px] text-[#7a3855]">No image</div>
+                          )}
+                        </div>
+
+                        <div className="rounded-lg border border-dashed border-[#ead4dd] bg-white p-2">
+                          <div className="mb-2 text-[10px] font-bold uppercase tracking-[0.2em] text-[#7a3855]">Image 2</div>
+                          <button
+                            type="button"
+                            onClick={() => uploadBookingImage(booking.id, "bookingImage2")}
+                            className="mb-2 rounded-md bg-[#5b2b45] px-2 py-1 text-[10px] font-semibold text-white"
+                          >
+                            Upload
+                          </button>
+                          {booking.bookingImage2 ? (
+                            <img src={optimizeImageUrl(booking.bookingImage2)} alt="booking image 2" onError={(event) => handleImageError(event)} loading="lazy" className="h-16 w-full rounded object-cover" />
+                          ) : (
+                            <div className="flex h-16 w-full items-center justify-center rounded bg-[#f9eef2] text-[10px] text-[#7a3855]">No image</div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
                   </td>
                 </tr>
               ))}

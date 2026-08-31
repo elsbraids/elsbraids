@@ -187,7 +187,7 @@ router.get('/settings', async (req, res) => {
 });
 
 router.post('/bookings', customerProtect, actionLimiter, async (req, res) => {
-  const { phone, serviceName, date, time, notes, location, googleLocation, paymentReference, paymentOption } = req.body;
+  const { phone, serviceName, date, time, notes, location, googleLocation, paymentReference, paymentOption, bookingImage1, bookingImage2 } = req.body;
   const customerName = req.customer.fullName;
   const email = req.customer.email;
   const service = inMemoryStore.services.find((item) => item.name === serviceName || item.id === serviceName);
@@ -222,6 +222,8 @@ router.post('/bookings', customerProtect, actionLimiter, async (req, res) => {
     location: cleanText(location || googleLocation || 'Atonsu, Kumasi, Ghana', 300),
     googleLocation: cleanText(googleLocation || location || 'Atonsu, Kumasi, Ghana', 300),
     notes: cleanText(notes, 1000),
+    bookingImage1: typeof bookingImage1 === 'string' ? bookingImage1 : '',
+    bookingImage2: typeof bookingImage2 === 'string' ? bookingImage2 : '',
     status: 'Pending',
     paymentOption,
     paymentAmount: expectedAmount / 100,

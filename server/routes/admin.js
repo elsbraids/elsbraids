@@ -140,10 +140,21 @@ router.get('/bookings', async (req, res) => {
 });
 
 router.put('/bookings/:id', (req, res) => {
-  if (isDatabaseReady()) return Booking.findOneAndUpdate({ $or: [{ id: req.params.id }, { _id: req.params.id }] }, { $set: { status: req.body.status } }, { new: true, runValidators: true }).then((booking) => booking ? res.json({ success: true, data: present(booking) }) : res.status(404).json({ message: 'Booking not found' }));
+  const nextValues = { ...req.body };
+  if (Object.prototype.hasOwnProperty.call(nextValues, 'bookingImage1')) nextValues.bookingImage1 = typeof nextValues.bookingImage1 === 'string' ? nextValues.bookingImage1 : '';
+  if (Object.prototype.hasOwnProperty.call(nextValues, 'bookingImage2')) nextValues.bookingImage2 = typeof nextValues.bookingImage2 === 'string' ? nextValues.bookingImage2 : '';
+
+  if (isDatabaseReady()) {
+    return Booking.findOneAndUpdate(
+      { $or: [{ id: req.params.id }, { _id: req.params.id }] },
+      { $set: nextValues },
+      { new: true, runValidators: true },
+    ).then((booking) => booking ? res.json({ success: true, data: present(booking) }) : res.status(404).json({ message: 'Booking not found' }));
+  }
+
   const booking = inMemoryStore.bookings.find((item) => item.id === req.params.id);
   if (!booking) return res.status(404).json({ message: 'Booking not found' });
-  booking.status = req.body.status || booking.status;
+  Object.assign(booking, nextValues);
   res.json({ success: true, data: booking });
 });
 
