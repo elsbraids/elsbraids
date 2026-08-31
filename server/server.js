@@ -14,6 +14,7 @@ const { connectDatabase } = require('./config/db');
 const { seedSampleData } = require('./data/sampleData');
 const publicRoutes = require('./routes/public');
 const adminRoutes = require('./routes/admin');
+const webhookRoutes = require('./routes/webhooks');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -54,6 +55,10 @@ app.use((req, res, next) => {
   res.setHeader('Permissions-Policy', 'camera=(), microphone=(), geolocation=(self)');
   next();
 });
+
+// IMPORTANT: Webhooks must be mounted before express.json() so they can access the raw body Buffer for signature verification
+app.use('/api/webhooks', express.raw({ type: 'application/json' }), webhookRoutes);
+
 app.use(express.json({ limit: '8mb' }));
 app.use(express.urlencoded({ extended: false, limit: '64kb' }));
 app.use(cookieParser());
