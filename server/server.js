@@ -7,6 +7,7 @@ const morgan = require('morgan');
 const rateLimit = require('express-rate-limit');
 const cookieParser = require('cookie-parser');
 const { validateProductionEnvironment, isProduction } = require('./config/security');
+const { contentSecurityPolicy } = require('./config/headers');
 const { inMemoryStore } = require('./data/sampleData');
 
 const { connectDatabase } = require('./config/db');
@@ -24,13 +25,35 @@ if (process.env.ADMIN_EMAIL && process.env.ADMIN_PASSWORD_HASH) {
 }
 seedSampleData();
 
+const allowedOrigins = new Set([
+  process.env.CLIENT_URL,
+  'https://elsbraids.vercel.app',
+  'http://localhost:5173',
+  'http://127.0.0.1:5173',
+].filter(Boolean));
+
 app.use(
   cors({
-    origin: process.env.CLIENT_URL || (isProduction ? false : 'http://localhost:5173'),
+    origin: (origin, callback) => {
+      if (!origin || allowedOrigins.has(origin)) return callback(null, true);
+      return callback(new Error('CORS origin is not allowed.'));
+    },
     credentials: true,
   }),
 );
-app.use(helmet({ crossOriginResourcePolicy: false }));
+app.use(helmet({
+  crossOriginResourcePolicy: false,
+  contentSecurityPolicy: { directives: Object.fromEntries(contentSecurityPolicy.split('; ').map((directive) => {
+    const [name, ...values] = directive.split(' ');
+    return [name, values];
+  })) },
+  frameguard: { action: 'sameorigin' },
+  referrerPolicy: { policy: 'strict-origin-when-cross-origin' },
+}));
+app.use((req, res, next) => {
+  res.setHeader('Permissions-Policy', 'camera=(), microphone=(), geolocation=(self)');
+  next();
+});
 app.use(express.json({ limit: '8mb' }));
 app.use(express.urlencoded({ extended: false, limit: '64kb' }));
 app.use(cookieParser());
