@@ -111,8 +111,6 @@ const customerSchema = new mongoose.Schema(
     passwordHash: { type: String, select: false },
     resetTokenHash: { type: String, select: false },
     resetTokenExpiresAt: { type: Date, select: false },
-    googleId: { type: String, unique: true, sparse: true, index: true },
-    authProvider: { type: String, enum: ['password', 'google'], default: 'password' },
     city: { type: String, maxlength: 100 },
     address: { type: String, maxlength: 300 },
   },

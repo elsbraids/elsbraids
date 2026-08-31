@@ -123,11 +123,6 @@ const createAdminToken = (admin) => jwt.sign(
   jwtOptions,
 );
 
-const googleConfig = () => ({
-  clientId: process.env.GOOGLE_CLIENT_ID,
-  clientSecret: process.env.GOOGLE_CLIENT_SECRET,
-  redirectUri: process.env.GOOGLE_REDIRECT_URI || 'http://localhost:5000/api/customers/google/callback',
-});
 
 const respondWithStore = (res, key) => res.json({ success: true, data: inMemoryStore[key] || [] });
 
@@ -448,7 +443,7 @@ router.post('/customers/forgot-password', authLimiter, async (req, res) => {
   const customer = isDatabaseReady()
     ? await Customer.findOne({ email }).select('+resetTokenHash +resetTokenExpiresAt').lean()
     : inMemoryStore.customerAccounts.find((entry) => entry.email === email);
-  if (!customer || customer.authProvider === 'google') return res.json(genericResponse);
+  if (!customer) return res.json(genericResponse);
 
   const token = crypto.randomBytes(32).toString('hex');
   const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
@@ -491,52 +486,6 @@ router.post('/customers/reset-password', authLimiter, async (req, res) => {
   return res.json({ success: true, message: 'Password reset successfully. You can now sign in.' });
 });
 
-router.get('/customers/google', authLimiter, (req, res) => {
-  const { clientId, redirectUri } = googleConfig();
-  if (!clientId) return res.status(503).json({ message: 'Google sign-in is not configured.' });
-  const state = crypto.randomBytes(24).toString('hex');
-  res.cookie('googleOAuthState', state, { httpOnly: true, secure: process.env.NODE_ENV === 'production', sameSite: 'lax', maxAge: 10 * 60 * 1000 });
-  const params = new URLSearchParams({ client_id: clientId, redirect_uri: redirectUri, response_type: 'code', scope: 'openid email profile', state, access_type: 'offline', prompt: 'select_account' });
-  return res.redirect(`https://accounts.google.com/o/oauth2/v2/auth?${params}`);
-});
-
-router.get('/customers/google/callback', async (req, res) => {
-  const { clientId, clientSecret, redirectUri } = googleConfig();
-  if (!clientId || !clientSecret || req.query.state !== req.cookies?.googleOAuthState || !req.query.code) return res.redirect('/signin?google=failed');
-  try {
-    const tokenResponse = await fetch('https://oauth2.googleapis.com/token', { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: new URLSearchParams({ code: req.query.code, client_id: clientId, client_secret: clientSecret, redirect_uri: redirectUri, grant_type: 'authorization_code' }) });
-    const tokenPayload = await tokenResponse.json();
-    if (!tokenResponse.ok || !tokenPayload.access_token) throw new Error('Google token exchange failed');
-    const profileResponse = await fetch('https://openidconnect.googleapis.com/v1/userinfo', { headers: { Authorization: `Bearer ${tokenPayload.access_token}` } });
-    const profile = await profileResponse.json();
-    if (!profileResponse.ok || !profile.sub || !profile.email || profile.email_verified !== true) throw new Error('Google profile validation failed');
-    let customer;
-    if (isDatabaseReady()) {
-      customer = await Customer.findOne({ $or: [{ googleId: profile.sub }, { email: profile.email.toLowerCase() }] });
-      if (customer) {
-        customer.name = cleanText(profile.name || profile.email, 120);
-        customer.googleId = profile.sub;
-        customer.authProvider = 'google';
-        await customer.save();
-      } else {
-        customer = await Customer.create({ name: cleanText(profile.name || profile.email, 120), email: profile.email.toLowerCase(), phone: 'Google account', googleId: profile.sub, authProvider: 'google' });
-      }
-    } else {
-      customer = inMemoryStore.customerAccounts.find((entry) => entry.googleId === profile.sub);
-      if (!customer) {
-        customer = { id: makeId('customer'), fullName: cleanText(profile.name || profile.email, 120), name: cleanText(profile.name || profile.email, 120), email: profile.email.toLowerCase(), phone: 'Google account', googleId: profile.sub, authProvider: 'google', createdAt: new Date().toISOString() };
-        inMemoryStore.customerAccounts.unshift(customer);
-      }
-    }
-    const token = createCustomerToken({ id: customer.id || customer._id.toString(), email: customer.email });
-    res.clearCookie('googleOAuthState');
-    res.cookie('customerToken', token, { httpOnly: true, secure: process.env.NODE_ENV === 'production', sameSite: 'strict', maxAge: 60 * 60 * 1000 });
-    return res.redirect(`${process.env.CLIENT_URL || 'http://localhost:5173'}/account/orders`);
-  } catch (error) {
-    console.error('Google sign-in failed:', error.message);
-    return res.redirect(`${process.env.CLIENT_URL || 'http://localhost:5173'}/signin?google=failed`);
-  }
-});
 
 router.get('/customers/me', customerProtect, (req, res) => res.json({ success: true, customer: { id: req.customer.id, name: req.customer.fullName, email: req.customer.email } }));
 

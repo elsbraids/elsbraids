@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Eye, EyeOff } from 'lucide-react';
 import axios from 'axios';
 import { Link, useNavigate, useLocation, useSearchParams } from 'react-router-dom';
-import { FcGoogle } from 'react-icons/fc';
+
 
 const initialForm = {
   fullName: '',
@@ -23,7 +23,7 @@ function CustomerAuthPage() {
   const [form, setForm] = useState(initialForm);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
-  const [googleError] = useState(new URLSearchParams(location.search).get('google') === 'failed');
+
   const [resetToken, setResetToken] = useState(searchParams.get('token') || '');
   const [resetMessage, setResetMessage] = useState('');
 
@@ -107,8 +107,7 @@ function CustomerAuthPage() {
           </div>}
 
           <h2 className="text-2xl font-black uppercase text-[#5b2b45]">{isForgotPassword ? 'Forgot Password' : isResetPassword ? 'Reset Password' : isSignIn ? 'Sign In' : 'Sign Up'}</h2>
-          {isSignIn && <a href="/api/customers/google" className="mt-5 flex w-full items-center justify-center gap-3 rounded-lg border border-[#e7d2dc] bg-white px-4 py-3 text-sm font-semibold text-[#5b2b45]"><FcGoogle size={20} /> Continue with Google</a>}
-          {googleError && <p className="mt-3 text-sm text-red-700">Google sign-in could not be completed. Please try again.</p>}
+
           <form onSubmit={handleSubmit} className="mt-6 space-y-5">
             {(isForgotPassword || isResetPassword) && <label className="block text-sm font-medium text-[#5b2b45]">
               {isResetPassword ? 'Reset token' : 'Email address'}
