@@ -1,8 +1,7 @@
 import { useState } from 'react';
 import { Eye, EyeOff } from 'lucide-react';
 import axios from 'axios';
-import { Link, useNavigate, useLocation, useSearchParams } from 'react-router-dom';
-
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 
 const initialForm = {
   fullName: '',
@@ -16,15 +15,19 @@ const initialForm = {
 function CustomerAuthPage() {
   const navigate = useNavigate();
   const location = useLocation();
-  const [searchParams] = useSearchParams();
   const isSignIn = location.pathname === '/signin';
   const isForgotPassword = location.pathname === '/forgot-password';
-  const isResetPassword = location.pathname === '/reset-password';
+  
   const [form, setForm] = useState(initialForm);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
 
-  const [resetToken, setResetToken] = useState(searchParams.get('token') || '');
+  // OTP Flow State
+  const [resetStep, setResetStep] = useState(1); // 1: Email, 2: OTP, 3: New Password
+  const [otpEmail, setOtpEmail] = useState('');
+  const [otpCode, setOtpCode] = useState('');
+  const [resetToken, setResetToken] = useState('');
+  const [newPassword, setNewPassword] = useState('');
   const [resetMessage, setResetMessage] = useState('');
 
   const handleChange = (event) => {
@@ -32,22 +35,38 @@ function CustomerAuthPage() {
     setForm((current) => ({ ...current, [name]: value }));
   };
 
-  const handleSubmit = async (event) => {
+  const handleForgotSubmit = async (e) => {
+    e.preventDefault();
+    setIsSubmitting(true);
+    setResetMessage('');
+    try {
+      if (resetStep === 1) {
+        await axios.post('/api/customers/forgot-password', { email: form.email });
+        setOtpEmail(form.email);
+        setResetStep(2);
+        setResetMessage('An OTP has been sent to your email.');
+      } else if (resetStep === 2) {
+        const res = await axios.post('/api/customers/verify-otp', { email: otpEmail, otp: otpCode });
+        setResetToken(res.data.resetToken);
+        setResetStep(3);
+        setResetMessage('OTP verified. Please enter your new password.');
+      } else if (resetStep === 3) {
+        const res = await axios.post('/api/customers/reset-password', { token: resetToken, password: newPassword });
+        alert(res.data.message || 'Password reset successfully.');
+        navigate('/signin');
+      }
+    } catch (err) {
+      setResetMessage(err.response?.data?.message || 'Something went wrong.');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleAuthSubmit = async (event) => {
     event.preventDefault();
     setIsSubmitting(true);
 
     try {
-      if (isForgotPassword) {
-        const response = await axios.post('/api/customers/forgot-password', { email: form.email });
-        setResetMessage(response.data.resetToken ? `Development reset token: ${response.data.resetToken}` : response.data.message);
-        return;
-      }
-      if (isResetPassword) {
-        const response = await axios.post('/api/customers/reset-password', { token: resetToken, password: form.password });
-        alert(response.data.message);
-        navigate('/signin');
-        return;
-      }
       const endpoint = isSignIn ? '/api/customers/signin' : '/api/customers/signup';
       const payload = isSignIn ? { email: form.email, password: form.password } : form;
       const response = await axios.post(endpoint, payload, { withCredentials: true });
@@ -89,34 +108,70 @@ function CustomerAuthPage() {
         </div>
 
         <div className="p-8 sm:p-10">
-          {!isForgotPassword && !isResetPassword && <div className="mb-6 grid grid-cols-2 rounded-full border border-[#ead4dd] bg-[#fffafc] p-1">
-            <Link
-              to="/signin"
-              state={{ from: location.state?.from }}
-              className={`rounded-full px-4 py-2 text-center text-sm font-semibold transition ${isSignIn ? 'bg-[#5b2b45] text-white' : 'text-[#5b2b45]'}`}
-            >
-              Sign In
-            </Link>
-            <Link
-              to="/signup"
-              state={{ from: location.state?.from }}
-              className={`rounded-full px-4 py-2 text-center text-sm font-semibold transition ${!isSignIn ? 'bg-[#5b2b45] text-white' : 'text-[#5b2b45]'}`}
-            >
-              Sign Up
-            </Link>
-          </div>}
+          {!isForgotPassword && (
+            <div className="mb-6 grid grid-cols-2 rounded-full border border-[#ead4dd] bg-[#fffafc] p-1">
+              <Link
+                to="/signin"
+                state={{ from: location.state?.from }}
+                className={`rounded-full px-4 py-2 text-center text-sm font-semibold transition ${isSignIn ? 'bg-[#5b2b45] text-white' : 'text-[#5b2b45]'}`}
+              >
+                Sign In
+              </Link>
+              <Link
+                to="/signup"
+                state={{ from: location.state?.from }}
+                className={`rounded-full px-4 py-2 text-center text-sm font-semibold transition ${!isSignIn ? 'bg-[#5b2b45] text-white' : 'text-[#5b2b45]'}`}
+              >
+                Sign Up
+              </Link>
+            </div>
+          )}
 
-          <h2 className="text-2xl font-black uppercase text-[#5b2b45]">{isForgotPassword ? 'Forgot Password' : isResetPassword ? 'Reset Password' : isSignIn ? 'Sign In' : 'Sign Up'}</h2>
+          <h2 className="text-2xl font-black uppercase text-[#5b2b45]">
+            {isForgotPassword ? 'Reset Password' : isSignIn ? 'Sign In' : 'Sign Up'}
+          </h2>
 
-          <form onSubmit={handleSubmit} className="mt-6 space-y-5">
-            {(isForgotPassword || isResetPassword) && <label className="block text-sm font-medium text-[#5b2b45]">
-              {isResetPassword ? 'Reset token' : 'Email address'}
-              {isResetPassword ? <input value={resetToken} onChange={(event) => setResetToken(event.target.value)} required className="mt-2 w-full rounded-lg border border-[#e7d2dc] bg-[#fffafc] px-4 py-3 outline-none" /> : <input type="email" name="email" value={form.email} onChange={handleChange} required className="mt-2 w-full rounded-lg border border-[#e7d2dc] bg-[#fffafc] px-4 py-3 outline-none" />}
-            </label>}
-            {isResetPassword && <label className="block text-sm font-medium text-[#5b2b45]">New password<input type="password" name="password" value={form.password} onChange={handleChange} required minLength={8} className="mt-2 w-full rounded-lg border border-[#e7d2dc] bg-[#fffafc] px-4 py-3 outline-none" /></label>}
-            {isForgotPassword && resetMessage && <p className="rounded-lg bg-[#edf8f1] px-4 py-3 text-sm font-semibold text-green-800">{resetMessage}</p>}
-            {!isSignIn && (
-              !isForgotPassword && !isResetPassword &&
+          <form onSubmit={isForgotPassword ? handleForgotSubmit : handleAuthSubmit} className="mt-6 space-y-5">
+            
+            {/* OTP FLOW */}
+            {isForgotPassword && (
+              <>
+                {resetMessage && (
+                  <p className={`rounded-lg px-4 py-3 text-sm font-semibold ${resetMessage.includes('wrong') ? 'bg-red-50 text-red-800' : 'bg-[#edf8f1] text-green-800'}`}>
+                    {resetMessage}
+                  </p>
+                )}
+                
+                {resetStep === 1 && (
+                  <label className="block text-sm font-medium text-[#5b2b45]">
+                    Email address
+                    <input type="email" name="email" value={form.email} onChange={handleChange} required className="mt-2 w-full rounded-lg border border-[#e7d2dc] bg-[#fffafc] px-4 py-3 outline-none" />
+                  </label>
+                )}
+                
+                {resetStep === 2 && (
+                  <label className="block text-sm font-medium text-[#5b2b45]">
+                    Enter 6-digit OTP
+                    <input type="text" value={otpCode} onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, '').slice(0, 6))} required className="mt-2 w-full text-center tracking-widest text-lg rounded-lg border border-[#e7d2dc] bg-[#fffafc] px-4 py-3 outline-none" placeholder="000000" />
+                  </label>
+                )}
+                
+                {resetStep === 3 && (
+                  <label className="block text-sm font-medium text-[#5b2b45]">
+                    New Password
+                    <div className="relative mt-2">
+                      <input type={showPassword ? 'text' : 'password'} value={newPassword} onChange={(e) => setNewPassword(e.target.value)} required minLength={8} className="w-full rounded-lg border border-[#e7d2dc] bg-[#fffafc] px-4 py-3 pr-11 outline-none" />
+                      <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute inset-y-0 right-3 flex items-center justify-center text-[#5b2b45]">
+                        {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                      </button>
+                    </div>
+                  </label>
+                )}
+              </>
+            )}
+
+            {/* NORMAL SIGN UP / IN FLOW */}
+            {!isForgotPassword && !isSignIn && (
               <div className="grid gap-5 md:grid-cols-2">
                 <label className="block text-sm font-medium text-[#5b2b45] md:col-span-2">
                   Full name
@@ -165,7 +220,7 @@ function CustomerAuthPage() {
               </div>
             )}
 
-            {isSignIn && !isForgotPassword && !isResetPassword && (
+            {!isForgotPassword && isSignIn && (
               <>
                 <label className="block text-sm font-medium text-[#5b2b45]">
                   Email address
@@ -195,19 +250,29 @@ function CustomerAuthPage() {
             )}
 
             <button type="submit" disabled={isSubmitting} className="w-full rounded-lg bg-[#5b2b45] px-4 py-3 font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60">
-              {isSubmitting ? 'Please wait...' : isForgotPassword ? 'Send reset instructions' : isResetPassword ? 'Reset password' : isSignIn ? 'Sign In' : 'Create account'}
+              {isSubmitting ? 'Please wait...' : isForgotPassword ? (resetStep === 1 ? 'Send OTP' : resetStep === 2 ? 'Verify OTP' : 'Update Password') : isSignIn ? 'Sign In' : 'Create account'}
             </button>
 
-            {!isForgotPassword && !isResetPassword && isSignIn && <p className="text-center text-sm text-[#5f4253]">
-              <Link to="/forgot-password" className="font-semibold text-[#5b2b45] underline">Forgot password?</Link>
-            </p>}
-            {(isForgotPassword || isResetPassword) && <p className="text-center text-sm text-[#5f4253]"><Link to="/signin" className="font-semibold text-[#5b2b45] underline">Back to sign in</Link></p>}
-            {!isForgotPassword && !isResetPassword && <p className="text-center text-sm text-[#5f4253]">
-              {isSignIn ? 'Need an account?' : 'Already have an account?'}{' '}
-              <Link to={isSignIn ? '/signup' : '/signin'} state={{ from: location.state?.from }} className="font-semibold text-[#5b2b45] underline">
-                {isSignIn ? 'Create one' : 'Sign in'}
-              </Link>
-            </p>}
+            {!isForgotPassword && isSignIn && (
+              <p className="text-center text-sm text-[#5f4253]">
+                <Link to="/forgot-password" className="font-semibold text-[#5b2b45] underline">Forgot password?</Link>
+              </p>
+            )}
+            
+            {isForgotPassword && (
+              <p className="text-center text-sm text-[#5f4253]">
+                <Link to="/signin" className="font-semibold text-[#5b2b45] underline">Back to sign in</Link>
+              </p>
+            )}
+            
+            {!isForgotPassword && (
+              <p className="text-center text-sm text-[#5f4253]">
+                {isSignIn ? 'Need an account?' : 'Already have an account?'}{' '}
+                <Link to={isSignIn ? '/signup' : '/signin'} state={{ from: location.state?.from }} className="font-semibold text-[#5b2b45] underline">
+                  {isSignIn ? 'Create one' : 'Sign in'}
+                </Link>
+              </p>
+            )}
           </form>
         </div>
       </div>

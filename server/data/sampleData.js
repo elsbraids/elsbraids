@@ -181,6 +181,7 @@ const inMemoryStore = {
   customers: sampleCustomers,
   customerAccounts: [],
   contactMessages: [],
+  notifications: [],
   admin: null,
 };
 

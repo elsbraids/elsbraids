@@ -5,34 +5,11 @@ const nodemailer = require('nodemailer');
 const { Booking, Order, Payment } = require('../models');
 const { isDatabaseReady } = require('../utils/database');
 const { inMemoryStore } = require('../data/sampleData');
+const { createNotification } = require('../utils/notifications');
 
 // ─── Email helper ─────────────────────────────────────────────────────────────
 
-const createTransporter = () => {
-  if (!process.env.EMAIL_HOST || !process.env.EMAIL_USER || !process.env.EMAIL_PASSWORD) return null;
-  return nodemailer.createTransport({
-    host: process.env.EMAIL_HOST,
-    port: Number(process.env.EMAIL_PORT || 587),
-    secure: Number(process.env.EMAIL_PORT || 587) === 465,
-    auth: { user: process.env.EMAIL_USER, pass: process.env.EMAIL_PASSWORD },
-  });
-};
-
-const sendConfirmationEmail = async ({ to, subject, html }) => {
-  const transporter = createTransporter();
-  if (!transporter) {
-    console.log('[webhook] Email not configured — skipping confirmation email to:', to);
-    return false;
-  }
-  try {
-    await transporter.sendMail({ from: process.env.EMAIL_FROM || process.env.EMAIL_USER, to, subject, html });
-    console.log('[webhook] Confirmation email sent to:', to);
-    return true;
-  } catch (error) {
-    console.error('[webhook] Failed to send confirmation email:', error.message);
-    return false;
-  }
-};
+// ─── Email HTML helpers ────────────────────────────────────────────────────────
 
 const bookingConfirmationHtml = (booking) => `
 <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;color:#333">
@@ -175,11 +152,25 @@ async function processWebhookDB(reference) {
 
     if (booking) {
       console.log('[webhook] Booking paymentStatus → Paid:', { ref: booking.reference, email: booking.email });
-      await sendConfirmationEmail({
-        to: booking.email,
-        subject: "EL'S BRAIDS — Your booking is confirmed!",
+      await createNotification({
+        recipientType: 'Customer',
+        recipientEmail: booking.email,
+        type: 'Purchase',
+        subject: "EL'S BRAIDS — Payment Successful & Booking Confirmed!",
+        message: `We have received your payment of GHS ${Number(booking.paymentAmount || 0).toFixed(2)}.`,
+        relatedData: { reference: booking.reference },
         html: bookingConfirmationHtml(booking),
       });
+      if (inMemoryStore.admin?.email) {
+        await createNotification({
+          recipientType: 'Admin',
+          recipientEmail: inMemoryStore.admin.email,
+          type: 'Purchase',
+          subject: 'Payment Received',
+          message: `${booking.customerName} paid GHS ${Number(booking.paymentAmount || 0).toFixed(2)} for ${booking.serviceName}.`,
+          relatedData: { reference: booking.reference },
+        });
+      }
     }
   }
 
@@ -193,11 +184,25 @@ async function processWebhookDB(reference) {
 
     if (order) {
       console.log('[webhook] Order paymentStatus → Paid:', { _id: String(order._id), email: order.email });
-      await sendConfirmationEmail({
-        to: order.email,
-        subject: "EL'S BRAIDS — Your order is confirmed!",
+      await createNotification({
+        recipientType: 'Customer',
+        recipientEmail: order.email,
+        type: 'Purchase',
+        subject: "EL'S BRAIDS — Payment Successful & Order Confirmed!",
+        message: `We have received your payment of GHS ${Number(order.total || order.subtotal || 0).toFixed(2)}.`,
+        relatedData: { paymentReference: order.paymentReference },
         html: orderConfirmationHtml(order),
       });
+      if (inMemoryStore.admin?.email) {
+        await createNotification({
+          recipientType: 'Admin',
+          recipientEmail: inMemoryStore.admin.email,
+          type: 'Purchase',
+          subject: 'Payment Received',
+          message: `${order.customerName} paid GHS ${Number(order.total || order.subtotal || 0).toFixed(2)} for an order.`,
+          relatedData: { paymentReference: order.paymentReference },
+        });
+      }
     }
   }
 }
@@ -211,6 +216,15 @@ function processWebhookMemory(reference) {
   if (booking) {
     booking.paymentStatus = 'Paid';
     console.log('[webhook][memory] Booking paymentStatus → Paid:', booking.reference);
+    createNotification({
+      recipientType: 'Customer',
+      recipientEmail: booking.email,
+      type: 'Purchase',
+      subject: "EL'S BRAIDS — Payment Successful!",
+      message: `We have received your payment.`,
+      relatedData: { reference: booking.reference },
+      html: bookingConfirmationHtml(booking),
+    });
     return;
   }
 
@@ -218,6 +232,15 @@ function processWebhookMemory(reference) {
   if (order) {
     order.paymentStatus = 'Paid';
     console.log('[webhook][memory] Order paymentStatus → Paid:', reference);
+    createNotification({
+      recipientType: 'Customer',
+      recipientEmail: order.email,
+      type: 'Purchase',
+      subject: "EL'S BRAIDS — Payment Successful!",
+      message: `We have received your payment.`,
+      relatedData: { paymentReference: order.paymentReference },
+      html: orderConfirmationHtml(order),
+    });
     return;
   }
 

@@ -15,6 +15,7 @@ const { seedSampleData } = require('./data/sampleData');
 const publicRoutes = require('./routes/public');
 const adminRoutes = require('./routes/admin');
 const webhookRoutes = require('./routes/webhooks');
+const notificationRoutes = require('./routes/notifications');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -77,16 +78,22 @@ app.get('/api/health', (req, res) => {
 
 app.use('/api', publicRoutes);
 app.use('/api/admin', adminRoutes);
+app.use('/api/notifications', notificationRoutes);
 
 app.use((err, req, res, next) => {
   console.error(err.stack);
   res.status(500).json({ message: 'Something went wrong on the server' });
 });
 
+const { startScheduler } = require('./jobs/scheduler');
+
 const start = async () => {
   try {
     await connectDatabase();
-    app.listen(PORT, '0.0.0.0', () => console.log(`Server running on http://0.0.0.0:${PORT}`));
+    app.listen(PORT, '0.0.0.0', () => {
+      console.log(`Server running on http://0.0.0.0:${PORT}`);
+      startScheduler();
+    });
   } catch (error) {
     console.error('Database startup failed.');
     if (isProduction) process.exit(1);

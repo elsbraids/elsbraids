@@ -1,11 +1,11 @@
 const express = require('express');
 const router = express.Router();
 const { protect } = require('../middleware/auth');
-const { inMemoryStore } = require('../data/sampleData');
-const { makeId, resolveGoogleMapsEmbed } = require('../data/sampleData');
+const { inMemoryStore, makeId } = require('../data/sampleData');
 const { cleanText, parseSafeUrl } = require('../utils/requestValidation');
 const { Product, Service, Booking, Order, Customer, Gallery, Settings, ContactMessage } = require('../models');
 const { isDatabaseReady } = require('../utils/database');
+const { createNotification } = require('../utils/notifications');
 
 const present = (document) => {
   const value = document.toObject ? document.toObject() : { ...document };
@@ -185,12 +185,21 @@ router.put('/bookings/:id', (req, res) => {
       { $or: [{ id: req.params.id }, { _id: req.params.id }] },
       { $set: nextValues },
       { new: true, runValidators: true },
-    ).then((booking) => booking ? res.json({ success: true, data: present(booking) }) : res.status(404).json({ message: 'Booking not found' }));
+    ).then(async (booking) => {
+      if (!booking) return res.status(404).json({ message: 'Booking not found' });
+      if (req.body.status) {
+        await createNotification({ recipientType: 'Customer', recipientEmail: booking.email, type: 'Status', subject: 'Booking Status Updated', message: `Your booking for ${booking.serviceName} is now ${req.body.status}.`, relatedData: { reference: booking.reference, status: req.body.status } });
+      }
+      res.json({ success: true, data: present(booking) });
+    });
   }
 
   const booking = inMemoryStore.bookings.find((item) => item.id === req.params.id);
   if (!booking) return res.status(404).json({ message: 'Booking not found' });
   Object.assign(booking, nextValues);
+  if (req.body.status) {
+    createNotification({ recipientType: 'Customer', recipientEmail: booking.email, type: 'Status', subject: 'Booking Status Updated', message: `Your booking for ${booking.serviceName} is now ${req.body.status}.`, relatedData: { reference: booking.reference, status: req.body.status } });
+  }
   res.json({ success: true, data: booking });
 });
 
@@ -206,11 +215,22 @@ router.get('/orders', async (req, res) => {
 });
 
 router.put('/orders/:id', (req, res) => {
-  if (isDatabaseReady()) return Order.findOneAndUpdate({ $or: [{ id: req.params.id }, { _id: req.params.id }] }, { $set: { status: req.body.status } }, { new: true, runValidators: true }).then((order) => order ? res.json({ success: true, data: present(order) }) : res.status(404).json({ message: 'Order not found' }));
+  if (isDatabaseReady()) {
+    return Order.findOneAndUpdate({ $or: [{ id: req.params.id }, { _id: req.params.id }] }, { $set: { status: req.body.status } }, { new: true, runValidators: true }).then(async (order) => {
+      if (!order) return res.status(404).json({ message: 'Order not found' });
+      if (req.body.status) {
+        await createNotification({ recipientType: 'Customer', recipientEmail: order.email, type: 'Status', subject: 'Order Status Updated', message: `Your order status is now ${req.body.status}.`, relatedData: { paymentReference: order.paymentReference, status: req.body.status } });
+      }
+      res.json({ success: true, data: present(order) });
+    });
+  }
   const order = inMemoryStore.orders.find((item) => item.id === req.params.id);
   if (!order) return res.status(404).json({ message: 'Order not found' });
   order.status = req.body.status || order.status;
   order.paymentStatus = req.body.paymentStatus || order.paymentStatus;
+  if (req.body.status) {
+    createNotification({ recipientType: 'Customer', recipientEmail: order.email, type: 'Status', subject: 'Order Status Updated', message: `Your order status is now ${req.body.status}.`, relatedData: { paymentReference: order.paymentReference, status: req.body.status } });
+  }
   res.json({ success: true, data: order });
 });
 

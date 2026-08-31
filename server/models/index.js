@@ -109,8 +109,9 @@ const customerSchema = new mongoose.Schema(
     bookings: { type: Number, default: 0 },
     orders: { type: Number, default: 0 },
     passwordHash: { type: String, select: false },
-    resetTokenHash: { type: String, select: false },
-    resetTokenExpiresAt: { type: Date, select: false },
+    otpHash: { type: String, select: false },
+    otpExpiresAt: { type: Date, select: false },
+    otpFailedAttempts: { type: Number, default: 0 },
     city: { type: String, maxlength: 100 },
     address: { type: String, maxlength: 300 },
   },
@@ -168,6 +169,19 @@ const settingsSchema = new mongoose.Schema(
   { timestamps: true },
 );
 
+const notificationSchema = new mongoose.Schema(
+  {
+    recipientType: { type: String, enum: ['Customer', 'Admin'], required: true, index: true },
+    recipientEmail: { type: String, required: true, index: true },
+    type: { type: String, enum: ['Booking', 'Purchase', 'Reminder', 'Status', 'Security'], required: true },
+    subject: { type: String, required: true },
+    message: { type: String, required: true },
+    relatedData: { type: mongoose.Schema.Types.Mixed },
+    read: { type: Boolean, default: false },
+  },
+  { timestamps: true },
+);
+
 module.exports = {
   Admin: mongoose.model('Admin', adminSchema),
   Service: mongoose.model('Service', serviceSchema),
@@ -179,4 +193,5 @@ module.exports = {
   Gallery: mongoose.model('Gallery', gallerySchema),
   ContactMessage: mongoose.model('ContactMessage', contactMessageSchema),
   Settings: mongoose.model('Settings', settingsSchema),
+  Notification: mongoose.model('Notification', notificationSchema),
 };

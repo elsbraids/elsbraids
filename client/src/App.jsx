@@ -20,6 +20,7 @@ const CustomerOrdersPage = lazy(() => import('./pages/CustomerOrdersPage'));
 const AdminLoginPage = lazy(() => import('./pages/AdminLoginPage'));
 const AdminDashboardPage = lazy(() => import('./pages/AdminDashboardPage'));
 const AdminLayout = lazy(() => import('./layouts/AdminLayout'));
+const NotificationsPage = lazy(() => import('./pages/NotificationsPage'));
 
 const LoadingFallback = () => (
   <div className="flex min-h-screen items-center justify-center bg-[#f9efef]">
@@ -50,6 +51,7 @@ function App() {
               <Route path="/forgot-password" element={<CustomerAuthPage />} />
               <Route path="/reset-password" element={<CustomerAuthPage />} />
               <Route path="/account/orders" element={<CustomerOrdersPage />} />
+              <Route path="/notifications" element={<NotificationsPage />} />
             </Route>
 
             <Route path="/admin/login" element={<AdminLoginPage />} />

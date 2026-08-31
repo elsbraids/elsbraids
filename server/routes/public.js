@@ -16,6 +16,7 @@ const crypto = require('crypto');
 const nodemailer = require('nodemailer');
 const { Customer, Product, Booking, Order, Payment, ContactMessage } = require('../models');
 const { isDatabaseReady } = require('../utils/database');
+const { createNotification } = require('../utils/notifications');
 
 const authLimiter = rateLimit({ windowMs: 15 * 60 * 1000, limit: 10, standardHeaders: true, legacyHeaders: false, message: { message: 'Too many authentication attempts. Please try again later.' } });
 const actionLimiter = rateLimit({ windowMs: 15 * 60 * 1000, limit: 20, standardHeaders: true, legacyHeaders: false, message: { message: 'Too many requests. Please try again later.' } });
@@ -243,9 +244,21 @@ router.post('/bookings', customerProtect, actionLimiter, async (req, res) => {
     payload.id = payload.id || payload._id?.toString();
     delete payload._id;
     delete payload.__v;
+    
+    await createNotification({ recipientType: 'Customer', recipientEmail: email, type: 'Booking', subject: 'Booking Confirmed', message: `Your booking for ${service.name} on ${date} at ${time} is confirmed.`, relatedData: { reference: payload.reference } });
+    if (inMemoryStore.admin?.email) {
+      await createNotification({ recipientType: 'Admin', recipientEmail: inMemoryStore.admin.email, type: 'Booking', subject: 'New Booking Created', message: `${customerName} booked ${service.name} on ${date} at ${time}.`, relatedData: { reference: payload.reference } });
+    }
+    
     console.log('[booking] saved booking to MongoDB', { id: payload.id, reference: payload.reference, email: payload.email });
     return res.status(201).json({ success: true, data: payload });
   }
+  
+  await createNotification({ recipientType: 'Customer', recipientEmail: email, type: 'Booking', subject: 'Booking Confirmed', message: `Your booking for ${service.name} on ${date} at ${time} is confirmed.`, relatedData: { reference: booking.reference } });
+  if (inMemoryStore.admin?.email) {
+    await createNotification({ recipientType: 'Admin', recipientEmail: inMemoryStore.admin.email, type: 'Booking', subject: 'New Booking Created', message: `${customerName} booked ${service.name} on ${date} at ${time}.`, relatedData: { reference: booking.reference } });
+  }
+  
   inMemoryStore.bookings.unshift(booking);
   return res.status(201).json({ success: true, data: booking });
 });
@@ -315,7 +328,18 @@ router.post('/orders', customerProtect, actionLimiter, async (req, res) => {
   if (isDatabaseReady()) {
     const savedOrder = await Order.create({ ...order, customerId: req.customer._id, subtotal: total, deliveryFee: 0, currency: 'GHS' });
     await Payment.create({ orderId: savedOrder._id, customerId: req.customer._id, reference: paymentReference, amount: Math.round(total * 100), currency: 'GHS', status: 'Paid' });
+    
+    await createNotification({ recipientType: 'Customer', recipientEmail: email, type: 'Purchase', subject: 'Order Confirmed', message: `Your order for GHS ${total} has been confirmed.`, relatedData: { paymentReference } });
+    if (inMemoryStore.admin?.email) {
+      await createNotification({ recipientType: 'Admin', recipientEmail: inMemoryStore.admin.email, type: 'Purchase', subject: 'New Order Received', message: `${customerName} placed an order for GHS ${total}.`, relatedData: { paymentReference } });
+    }
+    
     return res.status(201).json({ success: true, data: savedOrder.toObject() });
+  }
+
+  await createNotification({ recipientType: 'Customer', recipientEmail: email, type: 'Purchase', subject: 'Order Confirmed', message: `Your order for GHS ${total} has been confirmed.`, relatedData: { paymentReference } });
+  if (inMemoryStore.admin?.email) {
+    await createNotification({ recipientType: 'Admin', recipientEmail: inMemoryStore.admin.email, type: 'Purchase', subject: 'New Order Received', message: `${customerName} placed an order for GHS ${total}.`, relatedData: { paymentReference } });
   }
 
   inMemoryStore.orders.unshift(order);
@@ -418,7 +442,7 @@ router.post('/customers/signin', authLimiter, async (req, res) => {
   return res.json({ success: true, customer: { name: fullCustomer.fullName || fullCustomer.name, email: fullCustomer.email } });
 });
 
-const sendPasswordResetEmail = async (email, resetUrl) => {
+const sendOtpEmail = async (email, otp) => {
   if (!process.env.EMAIL_HOST || !process.env.EMAIL_USER || !process.env.EMAIL_PASSWORD) return false;
   const transporter = nodemailer.createTransport({
     host: process.env.EMAIL_HOST,
@@ -429,61 +453,157 @@ const sendPasswordResetEmail = async (email, resetUrl) => {
   await transporter.sendMail({
     from: process.env.EMAIL_FROM || process.env.EMAIL_USER,
     to: email,
-    subject: "Reset your EL'S BRAIDS password",
-    text: `Reset your password using this link: ${resetUrl}`,
-    html: `<p>Reset your EL'S BRAIDS password using this link:</p><p><a href="${resetUrl}">${resetUrl}</a></p>`,
+    subject: "EL'S BRAIDS — Your Password Reset Code",
+    text: `Your password reset code is: ${otp}. It expires in 10 minutes.`,
+    html: `<div style="font-family:Arial,sans-serif;max-width:500px;margin:0 auto;padding:20px;text-align:center"><h2>Password Reset</h2><p>Your 6-digit reset code is:</p><h1 style="background:#f7f0f4;padding:15px;letter-spacing:5px;color:#5b2b45">${otp}</h1><p>This code expires in 10 minutes.</p></div>`,
   });
   return true;
 };
 
+const sendResetConfirmationEmail = async (email) => {
+  if (!process.env.EMAIL_HOST || !process.env.EMAIL_USER || !process.env.EMAIL_PASSWORD) return false;
+  const transporter = nodemailer.createTransport({
+    host: process.env.EMAIL_HOST,
+    port: Number(process.env.EMAIL_PORT || 587),
+    secure: Number(process.env.EMAIL_PORT || 587) === 465,
+    auth: { user: process.env.EMAIL_USER, pass: process.env.EMAIL_PASSWORD },
+  });
+  await transporter.sendMail({
+    from: process.env.EMAIL_FROM || process.env.EMAIL_USER,
+    to: email,
+    subject: "EL'S BRAIDS — Password Changed",
+    html: `<p>Your password has been reset successfully. If you did not make this change, please contact us immediately.</p>`,
+  });
+  return true;
+};
+
+// 1. Request OTP
 router.post('/customers/forgot-password', authLimiter, async (req, res) => {
   const email = String(req.body?.email ?? '').replace(/[<>]/g, '').trim().toLowerCase();
-  const genericResponse = { success: true, message: 'If an account exists for that email, password reset instructions have been sent.' };
+  const genericResponse = { success: true, message: 'If an account exists, a reset code has been sent to your email.' };
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return res.json(genericResponse);
 
-  const customer = isDatabaseReady()
-    ? await Customer.findOne({ email }).select('+resetTokenHash +resetTokenExpiresAt').lean()
-    : inMemoryStore.customerAccounts.find((entry) => entry.email === email);
-  if (!customer) return res.json(genericResponse);
+  const isAdmin = inMemoryStore.admin && inMemoryStore.admin.email === email;
+  const customer = !isAdmin && (isDatabaseReady()
+    ? await Customer.findOne({ email }).select('+otpHash +otpExpiresAt +otpFailedAttempts').lean()
+    : inMemoryStore.customerAccounts.find((entry) => entry.email === email));
 
-  const token = crypto.randomBytes(32).toString('hex');
-  const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
-  const expiresAt = new Date(Date.now() + 60 * 60 * 1000);
-  if (isDatabaseReady()) {
-    await Customer.updateOne({ _id: customer._id }, { $set: { resetTokenHash: tokenHash, resetTokenExpiresAt: expiresAt } });
+  if (!isAdmin && !customer) return res.json(genericResponse);
+
+  const otp = Math.floor(100000 + Math.random() * 900000).toString();
+  const otpHash = await bcrypt.hash(otp, 10);
+  const otpExpiresAt = new Date(Date.now() + 10 * 60 * 1000);
+
+  if (isAdmin) {
+    inMemoryStore.admin.otpHash = otpHash;
+    inMemoryStore.admin.otpExpiresAt = otpExpiresAt.toISOString();
+    inMemoryStore.admin.otpFailedAttempts = 0;
+  } else if (isDatabaseReady()) {
+    await Customer.updateOne({ _id: customer._id }, { $set: { otpHash, otpExpiresAt, otpFailedAttempts: 0 } });
   } else {
-    customer.resetTokenHash = tokenHash;
-    customer.resetTokenExpiresAt = expiresAt.toISOString();
+    customer.otpHash = otpHash;
+    customer.otpExpiresAt = otpExpiresAt.toISOString();
+    customer.otpFailedAttempts = 0;
   }
 
-  const resetUrl = `${process.env.CLIENT_URL || 'http://localhost:5173'}/reset-password?token=${token}`;
   try {
-    const emailed = await sendPasswordResetEmail(email, resetUrl);
-    if (!emailed) console.log('[customer-auth] Password reset URL (development):', resetUrl);
+    const emailed = await sendOtpEmail(email, otp);
+    if (!emailed) console.log(`[auth] OTP for ${email} (development):`, otp);
   } catch (error) {
-    console.error('[customer-auth] Password reset email failed:', error.message);
+    console.error('[auth] OTP email failed:', error.message);
   }
-  return res.json(process.env.NODE_ENV === 'production' ? genericResponse : { ...genericResponse, resetToken: token });
+  return res.json(process.env.NODE_ENV === 'production' ? genericResponse : { ...genericResponse, otp });
 });
 
-router.post('/customers/reset-password', authLimiter, async (req, res) => {
-  const token = String(req.body?.token ?? '').trim();
-  const password = String(req.body?.password ?? '').trim();
-  if (!token || password.length < 8) return res.status(400).json({ success: false, message: 'A valid token and password of at least 8 characters are required.' });
-  const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
+// 2. Verify OTP
+router.post('/customers/verify-otp', authLimiter, async (req, res) => {
+  const email = String(req.body?.email ?? '').trim().toLowerCase();
+  const otp = String(req.body?.otp ?? '').trim();
+  if (!email || otp.length !== 6) return res.status(400).json({ success: false, message: 'Invalid OTP format.' });
+
+  const isAdmin = inMemoryStore.admin && inMemoryStore.admin.email === email;
+  const customer = !isAdmin && (isDatabaseReady()
+    ? await Customer.findOne({ email }).select('+otpHash +otpExpiresAt +otpFailedAttempts').lean()
+    : inMemoryStore.customerAccounts.find((entry) => entry.email === email));
+
+  const target = isAdmin ? inMemoryStore.admin : customer;
+  if (!target || !target.otpHash) return res.status(400).json({ success: false, message: 'Invalid or expired OTP.' });
+
   const now = new Date();
-  const customer = isDatabaseReady()
-    ? await Customer.findOne({ resetTokenHash: tokenHash, resetTokenExpiresAt: { $gt: now } }).select('+resetTokenHash +resetTokenExpiresAt')
-    : inMemoryStore.customerAccounts.find((entry) => entry.resetTokenHash === tokenHash && new Date(entry.resetTokenExpiresAt) > now);
-  if (!customer) return res.status(400).json({ success: false, message: 'This reset link is invalid or has expired.' });
-  const passwordHash = await bcrypt.hash(password, 12);
-  if (isDatabaseReady()) {
-    await Customer.updateOne({ _id: customer._id }, { $set: { passwordHash }, $unset: { resetTokenHash: 1, resetTokenExpiresAt: 1 } });
-  } else {
-    customer.password = passwordHash;
-    delete customer.resetTokenHash;
-    delete customer.resetTokenExpiresAt;
+  const expiresAt = new Date(target.otpExpiresAt);
+  if (now > expiresAt) return res.status(400).json({ success: false, message: 'OTP has expired.' });
+  if (target.otpFailedAttempts >= 3) return res.status(400).json({ success: false, message: 'Too many failed attempts. Please request a new OTP.' });
+
+  const isValid = await bcrypt.compare(otp, target.otpHash);
+  if (!isValid) {
+    const newAttempts = (target.otpFailedAttempts || 0) + 1;
+    if (isAdmin) {
+      inMemoryStore.admin.otpFailedAttempts = newAttempts;
+    } else if (isDatabaseReady()) {
+      await Customer.updateOne({ _id: customer._id }, { $set: { otpFailedAttempts: newAttempts } });
+    } else {
+      customer.otpFailedAttempts = newAttempts;
+    }
+    return res.status(400).json({ success: false, message: 'Invalid OTP.' });
   }
+
+  // OTP Valid! Clear OTP and issue temporary reset token (JWT)
+  const resetToken = jwt.sign({ email, role: isAdmin ? 'admin' : 'customer', intent: 'reset_password' }, getJwtSecret(), { expiresIn: '15m' });
+  
+  if (isAdmin) {
+    delete inMemoryStore.admin.otpHash;
+    delete inMemoryStore.admin.otpExpiresAt;
+    inMemoryStore.admin.otpFailedAttempts = 0;
+  } else if (isDatabaseReady()) {
+    await Customer.updateOne({ _id: customer._id }, { $unset: { otpHash: 1, otpExpiresAt: 1, otpFailedAttempts: 1 } });
+  } else {
+    delete customer.otpHash;
+    delete customer.otpExpiresAt;
+    customer.otpFailedAttempts = 0;
+  }
+
+  return res.json({ success: true, resetToken });
+});
+
+// 3. Reset Password
+router.post('/customers/reset-password', authLimiter, async (req, res) => {
+  const resetToken = String(req.body?.resetToken ?? '').trim();
+  const password = String(req.body?.password ?? '').trim();
+  if (!resetToken || password.length < 8) return res.status(400).json({ success: false, message: 'A valid token and password (min 8 chars) are required.' });
+
+  let decoded;
+  try {
+    decoded = jwt.verify(resetToken, getJwtSecret());
+    if (decoded.intent !== 'reset_password') throw new Error('Invalid token intent');
+  } catch (err) {
+    return res.status(400).json({ success: false, message: 'Reset token is invalid or expired.' });
+  }
+
+  const { email, role } = decoded;
+  const passwordHash = await bcrypt.hash(password, 12);
+  const isAdmin = role === 'admin' && inMemoryStore.admin && inMemoryStore.admin.email === email;
+
+  if (isAdmin) {
+    inMemoryStore.admin.password = passwordHash;
+  } else {
+    if (isDatabaseReady()) {
+      await Customer.updateOne({ email }, { $set: { passwordHash } });
+    } else {
+      const customer = inMemoryStore.customerAccounts.find((entry) => entry.email === email);
+      if (customer) customer.password = passwordHash;
+    }
+  }
+
+  try {
+    await sendResetConfirmationEmail(email);
+    // Notify admin for security monitoring
+    if (inMemoryStore.admin?.email) {
+      await sendResetConfirmationEmail(inMemoryStore.admin.email); // Sends alert to admin
+    }
+  } catch (err) {
+    console.error('[auth] Reset confirmation email failed');
+  }
+
   return res.json({ success: true, message: 'Password reset successfully. You can now sign in.' });
 });
 

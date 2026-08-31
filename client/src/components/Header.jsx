@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import axios from 'axios';
 import { useCart } from '../context/CartContext';
 import { handleImageError, optimizeImageUrl } from '../utils/image';
+import NotificationBell from './NotificationBell';
 
 const navItems = [
   { label: 'Home', to: '/' },
@@ -61,6 +62,7 @@ function Header() {
         </nav>
 
         <div className="hidden items-center gap-3 lg:flex">
+          <NotificationBell />
           <Link to="/account/orders" aria-label="Account and orders" title="Account and orders" className="flex h-10 w-10 items-center justify-center rounded-full border border-[#7a3855] text-[#5b2b45] transition hover:bg-[#f3dfe8]">
             <User size={18} />
           </Link>
@@ -73,9 +75,12 @@ function Header() {
           </Link>
         </div>
 
-        <button className="lg:hidden" onClick={() => setOpen(!open)} aria-label="Open menu">
-          <Menu size={24} className="text-[#5b2b45]" />
-        </button>
+        <div className="flex items-center gap-3 lg:hidden">
+          <NotificationBell />
+          <button onClick={() => setOpen(!open)} aria-label="Open menu">
+            <Menu size={24} className="text-[#5b2b45]" />
+          </button>
+        </div>
       </div>
 
       {open && (
