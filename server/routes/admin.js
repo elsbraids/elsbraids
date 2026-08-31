@@ -5,7 +5,7 @@ const { protect } = require('../middleware/auth');
 const { inMemoryStore } = require('../data/sampleData');
 const { makeId, resolveGoogleMapsEmbed } = require('../data/sampleData');
 const { cleanText, parseSafeUrl } = require('../utils/requestValidation');
-const { Product, Service, Booking, Order, Customer, Gallery, Settings } = require('../models');
+const { Product, Service, Booking, Order, Customer, Gallery, Settings, ContactMessage } = require('../models');
 const { isDatabaseReady } = require('../utils/database');
 
 const present = (document) => {
@@ -139,6 +139,43 @@ router.get('/bookings', async (req, res) => {
   res.json({ success: true, data: inMemoryStore.bookings });
 });
 
+router.post('/bookings', async (req, res) => {
+  if (!isDatabaseReady()) return res.status(503).json({ success: false, message: 'MongoDB is not connected.' });
+
+  const payload = {
+    reference: req.body.reference || `ELS-${Date.now()}`,
+    customerId: req.body.customerId,
+    customerName: req.body.customerName || 'Customer',
+    phone: req.body.phone || '',
+    email: req.body.email || '',
+    serviceName: req.body.serviceName || '',
+    date: req.body.date || '',
+    time: req.body.time || '',
+    location: req.body.location || '',
+    googleLocation: req.body.googleLocation || '',
+    notes: req.body.notes || '',
+    bookingImage1: typeof req.body.bookingImage1 === 'string' ? req.body.bookingImage1 : '',
+    bookingImage2: typeof req.body.bookingImage2 === 'string' ? req.body.bookingImage2 : '',
+    status: req.body.status || 'Pending',
+    paymentStatus: req.body.paymentStatus || 'Pending',
+    paymentOption: ['half', 'full'].includes(req.body.paymentOption) ? req.body.paymentOption : 'full',
+    paymentAmount: Number(req.body.paymentAmount || 0),
+  };
+
+  try {
+    const saved = await Booking.create(payload);
+    const output = saved.toObject ? saved.toObject() : { ...saved };
+    output.id = output.id || output._id?.toString();
+    delete output._id;
+    delete output.__v;
+    console.log('[admin-bookings] created booking record', { id: output.id, reference: output.reference, email: output.email });
+    return res.status(201).json({ success: true, data: output });
+  } catch (error) {
+    console.error('[admin-bookings] create failed:', error.message);
+    return res.status(400).json({ success: false, message: error.message || 'Unable to create booking.' });
+  }
+});
+
 router.put('/bookings/:id', (req, res) => {
   const nextValues = { ...req.body };
   if (Object.prototype.hasOwnProperty.call(nextValues, 'bookingImage1')) nextValues.bookingImage1 = typeof nextValues.bookingImage1 === 'string' ? nextValues.bookingImage1 : '';
@@ -183,14 +220,73 @@ router.get('/customers', async (req, res) => {
   res.json({ success: true, data: inMemoryStore.customers });
 });
 
-router.get('/messages', (req, res) => {
+router.get('/messages', async (req, res) => {
+  if (isDatabaseReady()) {
+    const messages = await ContactMessage.find().sort({ createdAt: -1 }).lean();
+    const payload = messages.map((message) => {
+      const output = { ...message, id: message.id || message._id?.toString() };
+      delete output._id;
+      delete output.__v;
+      return output;
+    });
+    console.log('[admin-messages] fetched from MongoDB', { count: payload.length });
+    return res.json({ success: true, data: payload });
+  }
   res.json({ success: true, data: inMemoryStore.contactMessages });
 });
 
-router.put('/messages/:id', (req, res) => {
+router.post('/messages', async (req, res) => {
+  if (!isDatabaseReady()) return res.status(503).json({ success: false, message: 'MongoDB is not connected.' });
+
+  const { customerName, name, email, phone, message, status } = req.body;
+  if (!customerName && !name) return res.status(400).json({ message: 'Customer name is required.' });
+  if (!email || !phone || !message) return res.status(400).json({ message: 'Email, phone, and message are required.' });
+
+  const entry = {
+    customerName: customerName || name,
+    name: name || customerName || '',
+    email,
+    phone,
+    message,
+    status: status === 'Read' ? 'Read' : 'Unread',
+    read: status === 'Read',
+  };
+
+  try {
+    const saved = await ContactMessage.create(entry);
+    const output = saved.toObject ? saved.toObject() : { ...saved };
+    output.id = output.id || output._id?.toString();
+    delete output._id;
+    delete output.__v;
+    console.log('[admin-messages] created message record', { id: output.id, email: output.email, status: output.status });
+    return res.status(201).json({ success: true, data: output });
+  } catch (error) {
+    console.error('[admin-messages] create failed:', error.message);
+    return res.status(400).json({ success: false, message: error.message || 'Unable to create message.' });
+  }
+});
+
+router.put('/messages/:id', async (req, res) => {
+  if (isDatabaseReady()) {
+    const updated = await ContactMessage.findOneAndUpdate(
+      { _id: req.params.id },
+      { $set: { read: req.body.read ?? false, status: req.body.read ? 'Read' : 'Unread' } },
+      { new: true, runValidators: true },
+    );
+
+    if (!updated) return res.status(404).json({ message: 'Message not found' });
+    const output = updated.toObject ? updated.toObject() : { ...updated };
+    output.id = output.id || output._id?.toString();
+    delete output._id;
+    delete output.__v;
+    console.log('[admin-messages] updated message record', { id: output.id, read: output.read, status: output.status });
+    return res.json({ success: true, data: output });
+  }
+
   const message = inMemoryStore.contactMessages.find((item) => item.id === req.params.id);
   if (!message) return res.status(404).json({ message: 'Message not found' });
   message.read = req.body.read ?? message.read ?? false;
+  message.status = message.read ? 'Read' : 'Unread';
   res.json({ success: true, data: message });
 });
 

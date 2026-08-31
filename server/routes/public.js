@@ -14,7 +14,7 @@ const { validateCustomerSignup, validateCustomerCredentials } = require('../util
 const { cleanText, isEmail, isPhone, parseSafeUrl, parseItems } = require('../utils/requestValidation');
 const crypto = require('crypto');
 const nodemailer = require('nodemailer');
-const { Customer, Product, Booking, Order, Payment } = require('../models');
+const { Customer, Product, Booking, Order, Payment, ContactMessage } = require('../models');
 const { isDatabaseReady } = require('../utils/database');
 
 const authLimiter = rateLimit({ windowMs: 15 * 60 * 1000, limit: 10, standardHeaders: true, legacyHeaders: false, message: { message: 'Too many authentication attempts. Please try again later.' } });
@@ -224,6 +224,7 @@ router.post('/bookings', customerProtect, actionLimiter, async (req, res) => {
     notes: cleanText(notes, 1000),
     bookingImage1: typeof bookingImage1 === 'string' ? bookingImage1 : '',
     bookingImage2: typeof bookingImage2 === 'string' ? bookingImage2 : '',
+    paymentStatus: 'Paid',
     status: 'Pending',
     paymentOption,
     paymentAmount: expectedAmount / 100,
@@ -231,9 +232,23 @@ router.post('/bookings', customerProtect, actionLimiter, async (req, res) => {
   };
 
   if (isDatabaseReady()) {
-    const saved = await Booking.create({ ...booking, customerId: req.customer._id, serviceId: service.id });
+    const saved = await Booking.create({
+      ...booking,
+      customerId: req.customer._id,
+      serviceId: service.id,
+      location: booking.location,
+      googleLocation: booking.googleLocation,
+      paymentOption,
+      paymentAmount: booking.paymentAmount,
+      paymentStatus: 'Paid',
+    });
     await Payment.create({ bookingId: saved._id, customerId: req.customer._id, reference: paymentReference, amount: expectedAmount, currency: 'GHS', status: 'Paid' });
-    return res.status(201).json({ success: true, data: saved.toObject() });
+    const payload = saved.toObject ? saved.toObject() : { ...saved };
+    payload.id = payload.id || payload._id?.toString();
+    delete payload._id;
+    delete payload.__v;
+    console.log('[booking] saved booking to MongoDB', { id: payload.id, reference: payload.reference, email: payload.email });
+    return res.status(201).json({ success: true, data: payload });
   }
   inMemoryStore.bookings.unshift(booking);
   return res.status(201).json({ success: true, data: booking });
@@ -578,12 +593,31 @@ router.post('/contact', (req, res) => {
 
   const messageEntry = {
     id: makeId('contact'),
+    customerName: name,
     name,
     email,
     phone,
     message,
+    status: 'Unread',
+    read: false,
     createdAt: new Date().toISOString(),
   };
+
+  if (isDatabaseReady()) {
+    return ContactMessage.create(messageEntry)
+      .then((saved) => {
+        const payload = saved.toObject ? saved.toObject() : { ...saved };
+        payload.id = payload.id || payload._id?.toString();
+        delete payload._id;
+        delete payload.__v;
+        console.log('[contact] saved message to MongoDB', { id: payload.id, email: payload.email, status: payload.status });
+        return res.status(201).json({ success: true, data: payload });
+      })
+      .catch((error) => {
+        console.error('[contact] MongoDB save failed:', error.message);
+        return res.status(500).json({ success: false, message: 'Unable to save your message right now.' });
+      });
+  }
 
   inMemoryStore.contactMessages.unshift(messageEntry);
   return res.status(201).json({ success: true, data: messageEntry });

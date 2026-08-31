@@ -6,13 +6,18 @@ import { handleImageError, optimizeImageUrl } from '../utils/image';
 
 const fallbackImage = '/hero_braids.jpg';
 
+const getSafeImageList = (images) => {
+  if (!Array.isArray(images)) return [];
+  return images.filter((image) => typeof image === 'string' && image.trim().length > 0);
+};
+
 function ServicesPage() {
   const [services, setServices] = useState([]);
   const [settings, setSettings] = useState({});
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState(false);
   const [activeCategory, setActiveCategory] = useState('All');
-  const [touchImageId, setTouchImageId] = useState(null);
+  const [activeImageMap, setActiveImageMap] = useState({});
 
   useEffect(() => {
     document.title = "Services | EL'S BRAIDS";
@@ -63,17 +68,44 @@ function ServicesPage() {
       </div>}
       {!loading && !loadError && <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
         {visibleServices.map((service) => {
-          const bgImg = service.images?.[0] || fallbackImage;
-          const alternateImg = service.images?.[1] || bgImg;
+          const safeImages = getSafeImageList(service.images);
+          const primaryImage = safeImages[0] || fallbackImage;
+          const secondaryImage = safeImages[1] || primaryImage;
+          const activeImageIndex = activeImageMap[service.id] === 1 ? 1 : 0;
+
+          const toggleImage = () => {
+            if (safeImages.length < 2) return;
+            setActiveImageMap((current) => ({
+              ...current,
+              [service.id]: current[service.id] === 1 ? 0 : 1,
+            }));
+          };
+
           return (
             <div
               key={service.id}
               className="group relative overflow-hidden rounded-[1.5rem] shadow-lg"
               style={{ minHeight: '340px' }}
             >
-              <div className="relative h-[340px] cursor-pointer overflow-hidden rounded-[1.5rem]" onClick={() => setTouchImageId((current) => current === service.id ? null : service.id)}>
-                <img src={optimizeImageUrl(bgImg, 600)} alt={service.name} onError={(event) => handleImageError(event, fallbackImage)} loading="lazy" decoding="async" className={`absolute inset-0 h-full w-full object-cover transition-transform duration-700 ease-out [@media(hover:hover)]:group-hover:-translate-x-full ${touchImageId === service.id ? '-translate-x-full' : ''}`} />
-                <img src={optimizeImageUrl(alternateImg, 600)} alt={`${service.name} alternate style`} onError={(event) => handleImageError(event, fallbackImage)} loading="lazy" decoding="async" className={`absolute inset-0 h-full w-full translate-x-full object-cover transition-transform duration-700 ease-out [@media(hover:hover)]:group-hover:translate-x-0 ${touchImageId === service.id ? 'translate-x-0' : ''}`} />
+              <div className="relative h-[340px] cursor-pointer overflow-hidden rounded-[1.5rem]" onClick={toggleImage}>
+                <img
+                  src={optimizeImageUrl(activeImageIndex === 0 ? primaryImage : secondaryImage, 600)}
+                  alt={service.name}
+                  onError={(event) => handleImageError(event, fallbackImage)}
+                  loading="lazy"
+                  decoding="async"
+                  className={`absolute inset-0 h-full w-full object-cover transition-opacity duration-500 ${activeImageIndex === 0 ? 'opacity-100' : 'opacity-0'}`}
+                />
+                {safeImages.length > 1 && (
+                  <img
+                    src={optimizeImageUrl(activeImageIndex === 1 ? secondaryImage : primaryImage, 600)}
+                    alt={`${service.name} alternate style`}
+                    onError={(event) => handleImageError(event, fallbackImage)}
+                    loading="lazy"
+                    decoding="async"
+                    className={`absolute inset-0 h-full w-full object-cover transition-opacity duration-500 ${activeImageIndex === 1 ? 'opacity-100' : 'opacity-0'}`}
+                  />
+                )}
                 <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent" />
                 <div className="absolute inset-x-0 bottom-0 p-5 text-white">
                   <h2 className="text-2xl font-bold leading-tight drop-shadow">{service.name}</h2>

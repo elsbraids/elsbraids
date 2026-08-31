@@ -49,9 +49,14 @@ const bookingSchema = new mongoose.Schema(
     serviceName: { type: String, required: true },
     date: { type: String, required: true },
     time: { type: String, required: true },
+    location: { type: String, default: '' },
+    googleLocation: { type: String, default: '' },
     notes: { type: String, default: '' },
     bookingImage1: { type: String, default: '' },
     bookingImage2: { type: String, default: '' },
+    paymentOption: { type: String, enum: ['half', 'full'], default: 'full' },
+    paymentAmount: { type: Number, default: 0 },
+    paymentStatus: { type: String, enum: ['Pending', 'Paid', 'Failed'], default: 'Pending' },
     status: { type: String, enum: ['Pending', 'Confirmed', 'Completed', 'Cancelled'], default: 'Pending' },
   },
   { timestamps: true },
@@ -128,10 +133,13 @@ const gallerySchema = new mongoose.Schema(
 
 const contactMessageSchema = new mongoose.Schema(
   {
-    name: { type: String, required: true },
+    customerName: { type: String, required: true },
+    name: { type: String, default: '' },
     email: { type: String, required: true },
     phone: { type: String, required: true },
     message: { type: String, required: true },
+    status: { type: String, enum: ['Unread', 'Read'], default: 'Unread' },
+    read: { type: Boolean, default: false },
   },
   { timestamps: true },
 );
