@@ -15,9 +15,11 @@ const connectDatabase = async () => {
     await mongoose.connect(mongoUri, {
       serverSelectionTimeoutMS: 5000,
     });
+    // Clean up any previously seeded sample services
+    await Service.deleteMany({ id: { $regex: /^svc-/ } });
+
     if (process.env.NODE_ENV !== 'production' || process.env.SEED_SAMPLE_DATA === 'true') {
       if (await Product.countDocuments() === 0) await Product.insertMany(sampleProducts.map(({ id, ...item }) => ({ ...item, id })));
-      if (await Service.countDocuments() === 0) await Service.insertMany(sampleServices);
       if (await Gallery.countDocuments() === 0) await Gallery.insertMany(sampleGallery);
       if (await Settings.countDocuments() === 0) await Settings.create({ key: 'main', ...sampleSettings });
     }

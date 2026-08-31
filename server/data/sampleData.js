@@ -172,7 +172,7 @@ const sampleCustomers = [
 ];
 
 const inMemoryStore = {
-  services: sampleServices,
+  services: [],
   products: sampleProducts,
   gallery: sampleGallery,
   settings: sampleSettings,
