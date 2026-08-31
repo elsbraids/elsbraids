@@ -6,6 +6,7 @@ const { cleanText, parseSafeUrl } = require('../utils/requestValidation');
 const { Product, Service, Booking, Order, Customer, Gallery, Settings, ContactMessage } = require('../models');
 const { isDatabaseReady } = require('../utils/database');
 const { createNotification } = require('../utils/notifications');
+const { sendStatusUpdateEmail } = require('../utils/email');
 
 const present = (document) => {
   const value = document.toObject ? document.toObject() : { ...document };
@@ -188,7 +189,10 @@ router.put('/bookings/:id', (req, res) => {
     ).then(async (booking) => {
       if (!booking) return res.status(404).json({ message: 'Booking not found' });
       if (req.body.status) {
-        await createNotification({ recipientType: 'Customer', recipientEmail: booking.email, type: 'Status', subject: 'Booking Status Updated', message: `Your booking for ${booking.serviceName} is now ${req.body.status}.`, relatedData: { reference: booking.reference, status: req.body.status } });
+        // Send email via Brevo
+        await sendStatusUpdateEmail({ fullName: booking.customerName, email: booking.email }, booking, req.body.status);
+        // Create in-app notification
+        await createNotification({ recipientType: 'Customer', recipientEmail: booking.email, type: 'Status', subject: 'Booking Status Updated', message: `Your booking for ${booking.serviceName} is now ${req.body.status}.`, relatedData: { reference: booking.reference, status: req.body.status }, sendEmail: false });
       }
       res.json({ success: true, data: present(booking) });
     });
@@ -198,7 +202,10 @@ router.put('/bookings/:id', (req, res) => {
   if (!booking) return res.status(404).json({ message: 'Booking not found' });
   Object.assign(booking, nextValues);
   if (req.body.status) {
-    createNotification({ recipientType: 'Customer', recipientEmail: booking.email, type: 'Status', subject: 'Booking Status Updated', message: `Your booking for ${booking.serviceName} is now ${req.body.status}.`, relatedData: { reference: booking.reference, status: req.body.status } });
+    // Send email via Brevo
+    sendStatusUpdateEmail({ fullName: booking.customerName, email: booking.email }, booking, req.body.status);
+    // Create in-app notification
+    createNotification({ recipientType: 'Customer', recipientEmail: booking.email, type: 'Status', subject: 'Booking Status Updated', message: `Your booking for ${booking.serviceName} is now ${req.body.status}.`, relatedData: { reference: booking.reference, status: req.body.status }, sendEmail: false });
   }
   res.json({ success: true, data: booking });
 });
@@ -219,7 +226,14 @@ router.put('/orders/:id', (req, res) => {
     return Order.findOneAndUpdate({ $or: [{ id: req.params.id }, { _id: req.params.id }] }, { $set: { status: req.body.status } }, { new: true, runValidators: true }).then(async (order) => {
       if (!order) return res.status(404).json({ message: 'Order not found' });
       if (req.body.status) {
-        await createNotification({ recipientType: 'Customer', recipientEmail: order.email, type: 'Status', subject: 'Order Status Updated', message: `Your order status is now ${req.body.status}.`, relatedData: { paymentReference: order.paymentReference, status: req.body.status } });
+        // Send email via Brevo
+        await sendStatusUpdateEmail(
+          { fullName: order.customerName, email: order.email }, 
+          { reference: order.paymentReference, serviceName: 'Product Purchase', date: new Date(order.createdAt).toLocaleDateString(), time: new Date(order.createdAt).toLocaleTimeString() }, 
+          req.body.status
+        );
+        // Create in-app notification
+        await createNotification({ recipientType: 'Customer', recipientEmail: order.email, type: 'Status', subject: 'Order Status Updated', message: `Your order status is now ${req.body.status}.`, relatedData: { paymentReference: order.paymentReference, status: req.body.status }, sendEmail: false });
       }
       res.json({ success: true, data: present(order) });
     });
@@ -229,7 +243,14 @@ router.put('/orders/:id', (req, res) => {
   order.status = req.body.status || order.status;
   order.paymentStatus = req.body.paymentStatus || order.paymentStatus;
   if (req.body.status) {
-    createNotification({ recipientType: 'Customer', recipientEmail: order.email, type: 'Status', subject: 'Order Status Updated', message: `Your order status is now ${req.body.status}.`, relatedData: { paymentReference: order.paymentReference, status: req.body.status } });
+    // Send email via Brevo
+    sendStatusUpdateEmail(
+      { fullName: order.customerName, email: order.email }, 
+      { reference: order.paymentReference, serviceName: 'Product Purchase', date: new Date(order.createdAt).toLocaleDateString(), time: new Date(order.createdAt).toLocaleTimeString() }, 
+      req.body.status
+    );
+    // Create in-app notification
+    createNotification({ recipientType: 'Customer', recipientEmail: order.email, type: 'Status', subject: 'Order Status Updated', message: `Your order status is now ${req.body.status}.`, relatedData: { paymentReference: order.paymentReference, status: req.body.status }, sendEmail: false });
   }
   res.json({ success: true, data: order });
 });

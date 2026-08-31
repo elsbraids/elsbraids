@@ -17,6 +17,14 @@ const nodemailer = require('nodemailer');
 const { Customer, Product, Booking, Order, Payment, ContactMessage } = require('../models');
 const { isDatabaseReady } = require('../utils/database');
 const { createNotification } = require('../utils/notifications');
+const {
+  sendOtpEmail,
+  sendResetConfirmationEmail,
+  sendBookingConfirmation,
+  sendAdminBookingAlert,
+  sendPaymentReceipt,
+  sendAdminPaymentAlert
+} = require('../utils/email');
 
 const authLimiter = rateLimit({ windowMs: 15 * 60 * 1000, limit: 10, standardHeaders: true, legacyHeaders: false, message: { message: 'Too many authentication attempts. Please try again later.' } });
 const actionLimiter = rateLimit({ windowMs: 15 * 60 * 1000, limit: 20, standardHeaders: true, legacyHeaders: false, message: { message: 'Too many requests. Please try again later.' } });
@@ -245,18 +253,31 @@ router.post('/bookings', customerProtect, actionLimiter, async (req, res) => {
     delete payload._id;
     delete payload.__v;
     
-    await createNotification({ recipientType: 'Customer', recipientEmail: email, type: 'Booking', subject: 'Booking Confirmed', message: `Your booking for ${service.name} on ${date} at ${time} is confirmed.`, relatedData: { reference: payload.reference } });
+    // Send email via Brevo
+    await sendBookingConfirmation(req.customer, payload);
     if (inMemoryStore.admin?.email) {
-      await createNotification({ recipientType: 'Admin', recipientEmail: inMemoryStore.admin.email, type: 'Booking', subject: 'New Booking Created', message: `${customerName} booked ${service.name} on ${date} at ${time}.`, relatedData: { reference: payload.reference } });
+      await sendAdminBookingAlert(inMemoryStore.admin.email, payload, req.customer);
+    }
+
+    // In-app notifications
+    await createNotification({ recipientType: 'Customer', recipientEmail: email, type: 'Booking', subject: 'Booking Confirmed', message: `Your booking for ${service.name} on ${date} at ${time} is confirmed.`, relatedData: { reference: payload.reference }, sendEmail: false });
+    if (inMemoryStore.admin?.email) {
+      await createNotification({ recipientType: 'Admin', recipientEmail: inMemoryStore.admin.email, type: 'Booking', subject: 'New Booking Created', message: `${customerName} booked ${service.name} on ${date} at ${time}.`, relatedData: { reference: payload.reference }, sendEmail: false });
     }
     
     console.log('[booking] saved booking to MongoDB', { id: payload.id, reference: payload.reference, email: payload.email });
     return res.status(201).json({ success: true, data: payload });
   }
   
-  await createNotification({ recipientType: 'Customer', recipientEmail: email, type: 'Booking', subject: 'Booking Confirmed', message: `Your booking for ${service.name} on ${date} at ${time} is confirmed.`, relatedData: { reference: booking.reference } });
+  // In-memory fallback
+  await sendBookingConfirmation(req.customer, booking);
   if (inMemoryStore.admin?.email) {
-    await createNotification({ recipientType: 'Admin', recipientEmail: inMemoryStore.admin.email, type: 'Booking', subject: 'New Booking Created', message: `${customerName} booked ${service.name} on ${date} at ${time}.`, relatedData: { reference: booking.reference } });
+    await sendAdminBookingAlert(inMemoryStore.admin.email, booking, req.customer);
+  }
+
+  await createNotification({ recipientType: 'Customer', recipientEmail: email, type: 'Booking', subject: 'Booking Confirmed', message: `Your booking for ${service.name} on ${date} at ${time} is confirmed.`, relatedData: { reference: booking.reference }, sendEmail: false });
+  if (inMemoryStore.admin?.email) {
+    await createNotification({ recipientType: 'Admin', recipientEmail: inMemoryStore.admin.email, type: 'Booking', subject: 'New Booking Created', message: `${customerName} booked ${service.name} on ${date} at ${time}.`, relatedData: { reference: booking.reference }, sendEmail: false });
   }
   
   inMemoryStore.bookings.unshift(booking);
@@ -329,17 +350,30 @@ router.post('/orders', customerProtect, actionLimiter, async (req, res) => {
     const savedOrder = await Order.create({ ...order, customerId: req.customer._id, subtotal: total, deliveryFee: 0, currency: 'GHS' });
     await Payment.create({ orderId: savedOrder._id, customerId: req.customer._id, reference: paymentReference, amount: Math.round(total * 100), currency: 'GHS', status: 'Paid' });
     
-    await createNotification({ recipientType: 'Customer', recipientEmail: email, type: 'Purchase', subject: 'Order Confirmed', message: `Your order for GHS ${total} has been confirmed.`, relatedData: { paymentReference } });
+    // Send email via Brevo
+    await sendPaymentReceipt(req.customer, { paymentReference, total, items: trustedItems });
     if (inMemoryStore.admin?.email) {
-      await createNotification({ recipientType: 'Admin', recipientEmail: inMemoryStore.admin.email, type: 'Purchase', subject: 'New Order Received', message: `${customerName} placed an order for GHS ${total}.`, relatedData: { paymentReference } });
+      await sendAdminPaymentAlert(inMemoryStore.admin.email, { paymentReference, total, customerName, email });
+    }
+
+    // In-app notifications
+    await createNotification({ recipientType: 'Customer', recipientEmail: email, type: 'Purchase', subject: 'Order Confirmed', message: `Your order for GHS ${total} has been confirmed.`, relatedData: { paymentReference }, sendEmail: false });
+    if (inMemoryStore.admin?.email) {
+      await createNotification({ recipientType: 'Admin', recipientEmail: inMemoryStore.admin.email, type: 'Purchase', subject: 'New Order Received', message: `${customerName} placed an order for GHS ${total}.`, relatedData: { paymentReference }, sendEmail: false });
     }
     
     return res.status(201).json({ success: true, data: savedOrder.toObject() });
   }
 
-  await createNotification({ recipientType: 'Customer', recipientEmail: email, type: 'Purchase', subject: 'Order Confirmed', message: `Your order for GHS ${total} has been confirmed.`, relatedData: { paymentReference } });
+  // In-memory fallback
+  await sendPaymentReceipt(req.customer, { paymentReference, total, items: trustedItems });
   if (inMemoryStore.admin?.email) {
-    await createNotification({ recipientType: 'Admin', recipientEmail: inMemoryStore.admin.email, type: 'Purchase', subject: 'New Order Received', message: `${customerName} placed an order for GHS ${total}.`, relatedData: { paymentReference } });
+    await sendAdminPaymentAlert(inMemoryStore.admin.email, { paymentReference, total, customerName, email });
+  }
+
+  await createNotification({ recipientType: 'Customer', recipientEmail: email, type: 'Purchase', subject: 'Order Confirmed', message: `Your order for GHS ${total} has been confirmed.`, relatedData: { paymentReference }, sendEmail: false });
+  if (inMemoryStore.admin?.email) {
+    await createNotification({ recipientType: 'Admin', recipientEmail: inMemoryStore.admin.email, type: 'Purchase', subject: 'New Order Received', message: `${customerName} placed an order for GHS ${total}.`, relatedData: { paymentReference }, sendEmail: false });
   }
 
   inMemoryStore.orders.unshift(order);
@@ -442,40 +476,7 @@ router.post('/customers/signin', authLimiter, async (req, res) => {
   return res.json({ success: true, customer: { name: fullCustomer.fullName || fullCustomer.name, email: fullCustomer.email } });
 });
 
-const sendOtpEmail = async (email, otp) => {
-  if (!process.env.EMAIL_HOST || !process.env.EMAIL_USER || !process.env.EMAIL_PASSWORD) return false;
-  const transporter = nodemailer.createTransport({
-    host: process.env.EMAIL_HOST,
-    port: Number(process.env.EMAIL_PORT || 587),
-    secure: Number(process.env.EMAIL_PORT || 587) === 465,
-    auth: { user: process.env.EMAIL_USER, pass: process.env.EMAIL_PASSWORD },
-  });
-  await transporter.sendMail({
-    from: process.env.EMAIL_FROM || process.env.EMAIL_USER,
-    to: email,
-    subject: "EL'S BRAIDS — Your Password Reset Code",
-    text: `Your password reset code is: ${otp}. It expires in 10 minutes.`,
-    html: `<div style="font-family:Arial,sans-serif;max-width:500px;margin:0 auto;padding:20px;text-align:center"><h2>Password Reset</h2><p>Your 6-digit reset code is:</p><h1 style="background:#f7f0f4;padding:15px;letter-spacing:5px;color:#5b2b45">${otp}</h1><p>This code expires in 10 minutes.</p></div>`,
-  });
-  return true;
-};
-
-const sendResetConfirmationEmail = async (email) => {
-  if (!process.env.EMAIL_HOST || !process.env.EMAIL_USER || !process.env.EMAIL_PASSWORD) return false;
-  const transporter = nodemailer.createTransport({
-    host: process.env.EMAIL_HOST,
-    port: Number(process.env.EMAIL_PORT || 587),
-    secure: Number(process.env.EMAIL_PORT || 587) === 465,
-    auth: { user: process.env.EMAIL_USER, pass: process.env.EMAIL_PASSWORD },
-  });
-  await transporter.sendMail({
-    from: process.env.EMAIL_FROM || process.env.EMAIL_USER,
-    to: email,
-    subject: "EL'S BRAIDS — Password Changed",
-    html: `<p>Your password has been reset successfully. If you did not make this change, please contact us immediately.</p>`,
-  });
-  return true;
-};
+// Helper functions replaced by Brevo email service module import at the top
 
 // 1. Request OTP
 router.post('/customers/forgot-password', authLimiter, async (req, res) => {
@@ -567,7 +568,7 @@ router.post('/customers/verify-otp', authLimiter, async (req, res) => {
 
 // 3. Reset Password
 router.post('/customers/reset-password', authLimiter, async (req, res) => {
-  const resetToken = String(req.body?.resetToken ?? '').trim();
+  const resetToken = String(req.body?.resetToken ?? req.body?.token ?? '').trim();
   const password = String(req.body?.password ?? '').trim();
   if (!resetToken || password.length < 8) return res.status(400).json({ success: false, message: 'A valid token and password (min 8 chars) are required.' });
 

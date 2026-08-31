@@ -1,11 +1,16 @@
 const express = require('express');
 const router = express.Router();
 const crypto = require('crypto');
-const nodemailer = require('nodemailer');
 const { Booking, Order, Payment } = require('../models');
 const { isDatabaseReady } = require('../utils/database');
 const { inMemoryStore } = require('../data/sampleData');
 const { createNotification } = require('../utils/notifications');
+const {
+  sendBookingConfirmation,
+  sendAdminBookingAlert,
+  sendPaymentReceipt,
+  sendAdminPaymentAlert
+} = require('../utils/email');
 
 // ─── Email helper ─────────────────────────────────────────────────────────────
 
@@ -152,6 +157,14 @@ async function processWebhookDB(reference) {
 
     if (booking) {
       console.log('[webhook] Booking paymentStatus → Paid:', { ref: booking.reference, email: booking.email });
+      
+      // Send email via Brevo
+      await sendBookingConfirmation({ fullName: booking.customerName, email: booking.email }, booking);
+      if (inMemoryStore.admin?.email) {
+        await sendAdminBookingAlert(inMemoryStore.admin.email, booking, { fullName: booking.customerName, email: booking.email, phone: booking.phone });
+      }
+
+      // In-app notifications
       await createNotification({
         recipientType: 'Customer',
         recipientEmail: booking.email,
@@ -159,7 +172,7 @@ async function processWebhookDB(reference) {
         subject: "EL'S BRAIDS — Payment Successful & Booking Confirmed!",
         message: `We have received your payment of GHS ${Number(booking.paymentAmount || 0).toFixed(2)}.`,
         relatedData: { reference: booking.reference },
-        html: bookingConfirmationHtml(booking),
+        sendEmail: false,
       });
       if (inMemoryStore.admin?.email) {
         await createNotification({
@@ -169,6 +182,7 @@ async function processWebhookDB(reference) {
           subject: 'Payment Received',
           message: `${booking.customerName} paid GHS ${Number(booking.paymentAmount || 0).toFixed(2)} for ${booking.serviceName}.`,
           relatedData: { reference: booking.reference },
+          sendEmail: false,
         });
       }
     }
@@ -184,6 +198,14 @@ async function processWebhookDB(reference) {
 
     if (order) {
       console.log('[webhook] Order paymentStatus → Paid:', { _id: String(order._id), email: order.email });
+      
+      // Send email via Brevo
+      await sendPaymentReceipt({ fullName: order.customerName, email: order.email }, order);
+      if (inMemoryStore.admin?.email) {
+        await sendAdminPaymentAlert(inMemoryStore.admin.email, { paymentReference: order.paymentReference, total: order.total || order.subtotal, customerName: order.customerName, email: order.email });
+      }
+
+      // In-app notifications
       await createNotification({
         recipientType: 'Customer',
         recipientEmail: order.email,
@@ -191,7 +213,7 @@ async function processWebhookDB(reference) {
         subject: "EL'S BRAIDS — Payment Successful & Order Confirmed!",
         message: `We have received your payment of GHS ${Number(order.total || order.subtotal || 0).toFixed(2)}.`,
         relatedData: { paymentReference: order.paymentReference },
-        html: orderConfirmationHtml(order),
+        sendEmail: false,
       });
       if (inMemoryStore.admin?.email) {
         await createNotification({
@@ -201,6 +223,7 @@ async function processWebhookDB(reference) {
           subject: 'Payment Received',
           message: `${order.customerName} paid GHS ${Number(order.total || order.subtotal || 0).toFixed(2)} for an order.`,
           relatedData: { paymentReference: order.paymentReference },
+          sendEmail: false,
         });
       }
     }
@@ -216,6 +239,13 @@ function processWebhookMemory(reference) {
   if (booking) {
     booking.paymentStatus = 'Paid';
     console.log('[webhook][memory] Booking paymentStatus → Paid:', booking.reference);
+    
+    // Brevo email sending
+    sendBookingConfirmation({ fullName: booking.customerName, email: booking.email }, booking);
+    if (inMemoryStore.admin?.email) {
+      sendAdminBookingAlert(inMemoryStore.admin.email, booking, { fullName: booking.customerName, email: booking.email, phone: booking.phone });
+    }
+
     createNotification({
       recipientType: 'Customer',
       recipientEmail: booking.email,
@@ -223,7 +253,7 @@ function processWebhookMemory(reference) {
       subject: "EL'S BRAIDS — Payment Successful!",
       message: `We have received your payment.`,
       relatedData: { reference: booking.reference },
-      html: bookingConfirmationHtml(booking),
+      sendEmail: false,
     });
     return;
   }
@@ -232,6 +262,13 @@ function processWebhookMemory(reference) {
   if (order) {
     order.paymentStatus = 'Paid';
     console.log('[webhook][memory] Order paymentStatus → Paid:', reference);
+    
+    // Brevo email sending
+    sendPaymentReceipt({ fullName: order.customerName, email: order.email }, order);
+    if (inMemoryStore.admin?.email) {
+      sendAdminPaymentAlert(inMemoryStore.admin.email, { paymentReference: order.paymentReference, total: order.total || order.subtotal, customerName: order.customerName, email: order.email });
+    }
+
     createNotification({
       recipientType: 'Customer',
       recipientEmail: order.email,
@@ -239,7 +276,7 @@ function processWebhookMemory(reference) {
       subject: "EL'S BRAIDS — Payment Successful!",
       message: `We have received your payment.`,
       relatedData: { paymentReference: order.paymentReference },
-      html: orderConfirmationHtml(order),
+      sendEmail: false,
     });
     return;
   }

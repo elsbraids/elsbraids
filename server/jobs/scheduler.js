@@ -3,6 +3,7 @@ const { Booking } = require('../models');
 const { isDatabaseReady } = require('../utils/database');
 const { inMemoryStore } = require('../data/sampleData');
 const { createNotification } = require('../utils/notifications');
+const { sendReminderEmail } = require('../utils/email');
 
 const checkUpcomingBookings = async () => {
   try {
@@ -25,6 +26,9 @@ const checkUpcomingBookings = async () => {
     if (bookings.length > 0) {
       console.log(`[scheduler] Found ${bookings.length} upcoming bookings. Sending reminders...`);
       for (const booking of bookings) {
+        // Send email via Brevo
+        await sendReminderEmail({ fullName: booking.customerName, email: booking.email }, booking);
+        // Create in-app notification
         await createNotification({
           recipientType: 'Customer',
           recipientEmail: booking.email,
@@ -32,6 +36,7 @@ const checkUpcomingBookings = async () => {
           subject: 'Booking Reminder',
           message: `This is a reminder for your upcoming booking: ${booking.serviceName} tomorrow at ${booking.time}.`,
           relatedData: { reference: booking.reference },
+          sendEmail: false
         });
       }
     }
