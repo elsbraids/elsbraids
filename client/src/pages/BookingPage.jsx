@@ -228,15 +228,16 @@ function BookingPage() {
     );
   };
 
-  // Handle form submission and Paystack integration
   const handleSubmit = async (event) => {
     event.preventDefault();
     setStatusMessage(null);
     setMapError('');
 
-    // Trigger local client side validations
+    console.log('[booking-payment] handleSubmit started');
+
     const formErrors = validateForm();
     if (formErrors) {
+      console.log('[booking-payment] form validation failed', formErrors);
       setErrors(formErrors);
       setStatusMessage({
         type: 'error',
@@ -246,85 +247,72 @@ function BookingPage() {
       return;
     }
 
+    if (!selectedService) {
+      console.log('[booking-payment] no selected service before payment');
+      setStatusMessage({
+        type: 'error',
+        text: 'Please select a service before continuing to payment.'
+      });
+      return;
+    }
+
     setErrors({});
     setIsSubmitting(true);
-    
+
     try {
-      // Check customer session authentication state
+      console.log('[booking-payment] checking auth with /api/customers/me');
       await axios.get('/api/customers/me', { withCredentials: true });
-      
-      if (!selectedService || !window.PaystackPop) {
-        setStatusMessage({
-          type: 'error',
-          text: 'Payment gateway is still loading. Please wait a moment and try again.'
-        });
-        setIsSubmitting(false);
-        return;
-      }
+      console.log('[booking-payment] auth check passed');
 
       const resolvedLocation = form.googleLocation || form.location || mapQuery || 'Atonsu, Kumasi, Ghana';
       const servicePrice = Number(selectedService.price) || 0;
       const paymentAmount = servicePrice * (form.paymentOption === 'half' ? 0.5 : 1);
-      
-      const handler = window.PaystackPop.setup({
-        key: import.meta.env.VITE_PAYSTACK_PUBLIC_KEY || 'pk_test_xxxxxxxxxxxxxxxxxxxxxxxxxxxxx',
-        email: form.email,
-        amount: Math.round(paymentAmount * 100),
-        currency: 'GHS',
-        ref: `els-booking-${Date.now()}`,
-        callback: async (payment) => {
-          try {
-            const response = await axios.post('/api/bookings', {
-              ...form,
-              serviceName: selectedService.name,
-              location: resolvedLocation,
-              googleLocation: resolvedLocation,
-              paymentReference: payment.reference
-            }, { withCredentials: true });
+      const paymentReference = `els-booking-${Date.now()}`;
 
-            setStatusMessage({
-              type: 'success',
-              text: `Booking created successfully! Reference: ${response.data.data.reference}`
-            });
-            
-            // Clear form
-            setForm({
-              customerName: '',
-              phone: '',
-              email: '',
-              serviceName: '',
-              date: '',
-              time: timeSlots[0],
-              location: 'Atonsu, Kumasi, Ghana',
-              googleLocation: 'Atonsu, Kumasi, Ghana',
-              notes: '',
-              paymentOption: 'full'
-            });
-            setSelectedServiceId('');
-            setMapQuery('Atonsu, Kumasi, Ghana');
-            window.scrollTo({ top: 0, behavior: 'smooth' });
-          } catch (error) {
-            console.error(error);
-            setStatusMessage({
-              type: 'error',
-              text: error.response?.data?.message || 'Payment succeeded but booking could not be saved. Please contact support immediately.'
-            });
-          } finally {
-            setIsSubmitting(false);
-          }
-        },
-        onClose: () => {
-          setIsSubmitting(false);
-          setStatusMessage({
-            type: 'error',
-            text: 'Payment window was closed. Your appointment reservation was not completed.'
-          });
-        },
+      const bookingPayload = {
+        customerName: form.customerName.trim(),
+        phone: form.phone.trim(),
+        email: form.email.trim(),
+        serviceName: selectedService.name,
+        date: form.date,
+        time: form.time,
+        location: resolvedLocation,
+        googleLocation: resolvedLocation,
+        notes: form.notes?.trim() || '',
+        paymentOption: form.paymentOption,
+      };
+
+      console.log('[booking-payment] requesting payment init', {
+        amount: Math.round(paymentAmount * 100),
+        email: bookingPayload.email,
+        reference: paymentReference,
+        booking: bookingPayload,
       });
-      handler.openIframe();
+
+      const paymentResponse = await axios.post('/api/booking/payment', {
+        amount: Math.round(paymentAmount * 100),
+        email: bookingPayload.email,
+        reference: paymentReference,
+        booking: bookingPayload,
+      }, { withCredentials: true });
+
+      console.log('[booking-payment] payment init response', paymentResponse.data);
+
+      const authorizationUrl = paymentResponse?.data?.data?.authorization_url;
+      if (!authorizationUrl) {
+        throw new Error(paymentResponse?.data?.message || 'No authorization URL returned from payment API.');
+      }
+
+      setStatusMessage({
+        type: 'success',
+        text: 'Redirecting to Paystack to complete your booking payment...'
+      });
+
+      window.location.assign(authorizationUrl);
     } catch (error) {
+      console.error('[booking-payment] payment flow failed', error);
+
       if (error.response?.status === 401 || error.response?.status === 403) {
-        // User not logged in, cache the form state as a draft in session storage
         sessionStorage.setItem(bookingDraftKey, JSON.stringify(form));
         setStatusMessage({
           type: 'error',
@@ -335,10 +323,11 @@ function BookingPage() {
         }, 2500);
         return;
       }
-      console.error(error);
+
+      const message = error.response?.data?.message || error.message || 'Unable to communicate with the server. Please check your network and try again.';
       setStatusMessage({
         type: 'error',
-        text: 'Unable to communicate with the server. Please check your network and try again.'
+        text: message,
       });
       setIsSubmitting(false);
     }
