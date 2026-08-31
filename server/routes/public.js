@@ -53,6 +53,64 @@ router.post('/payment', customerProtect, actionLimiter, async (req, res) => {
   }
 });
 
+const initializeBookingPayment = async (req, res) => {
+  const { amount, email, reference, booking } = req.body || {};
+  const numericAmount = Number(amount);
+  const customerEmail = String(email || req.customer.email).trim().toLowerCase();
+  const paymentReference = String(reference || booking?.reference || `els-booking-${Date.now()}`).trim();
+
+  if (!Number.isFinite(numericAmount) || numericAmount <= 0 || !isEmail(customerEmail) || paymentReference.length > 100) {
+    return res.status(400).json({ success: false, message: 'Valid booking payment amount, email, and reference are required.' });
+  }
+
+  if (customerEmail !== req.customer.email.toLowerCase()) {
+    return res.status(400).json({ success: false, message: 'Payment email must match the signed-in customer.' });
+  }
+
+  if (!process.env.PAYSTACK_SECRET_KEY) {
+    console.error('[booking-payment] PAYSTACK_SECRET_KEY is not configured');
+    return res.status(503).json({ success: false, message: 'Paystack payment service is not configured.' });
+  }
+
+  try {
+    console.log('[booking-payment] Initializing Paystack booking payment:', { amount: numericAmount, email: customerEmail, reference: paymentReference });
+    const response = await fetch('https://api.paystack.co/transaction/initialize', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${process.env.PAYSTACK_SECRET_KEY}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        amount: Math.round(numericAmount),
+        email: customerEmail,
+        reference: paymentReference,
+        currency: 'GHS',
+        callback_url: `${process.env.CLIENT_URL || 'http://localhost:5173'}/book`,
+      }),
+    });
+
+    const payload = await response.json();
+    if (!response.ok || !payload.status || !payload.data?.authorization_url) {
+      console.error('[booking-payment] Paystack initialization failed:', payload);
+      return res.status(502).json({ success: false, message: payload.message || 'Unable to initialize booking payment.' });
+    }
+
+    console.log('[booking-payment] Paystack booking payment initialized:', { reference: paymentReference });
+    return res.json({
+      success: true,
+      data: {
+        authorization_url: payload.data.authorization_url,
+        access_code: payload.data.access_code,
+        reference: payload.data.reference,
+      },
+      booking,
+    });
+  } catch (error) {
+    console.error('[booking-payment] Paystack request failed:', error.message);
+    return res.status(502).json({ success: false, message: 'Unable to communicate with Paystack.' });
+  }
+};
+
+router.post('/booking/payment', customerProtect, actionLimiter, initializeBookingPayment);
+router.post('/bookings/payment', customerProtect, actionLimiter, initializeBookingPayment);
+
 const createCustomerToken = (customer) => jwt.sign(
   { sub: customer.id, role: 'customer', email: customer.email },
   getJwtSecret(),
