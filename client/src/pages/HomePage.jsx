@@ -2,7 +2,7 @@ import { Link } from 'react-router-dom';
 import { Clock3, MapPin, ArrowRight } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import axios from 'axios';
-import { handleImageError, imageFallback, optimizeImageUrl } from '../utils/image';
+import { handleImageError, imageFallback, optimizeImageUrl, optimizeImageSrcSet } from '../utils/image';
 
 const heroImage = imageFallback;
 
@@ -70,9 +70,14 @@ function HomePage() {
         ) : displayedHeroSlides.map((slide, index) => (
           <img
             key={slide.image}
-            src={optimizeImageUrl(slide.image, 1600)}
+            src={optimizeImageUrl(slide.image, 800)}
+            srcSet={optimizeImageSrcSet(slide.image)}
+            sizes="100vw"
             alt={slide.alt}
             aria-hidden={index !== activeHeroSlide}
+            loading={index === 0 ? "eager" : "lazy"}
+            fetchPriority={index === 0 ? "high" : "auto"}
+            decoding="async"
             onError={(event) => {
               handleImageError(event);
             }}
@@ -175,8 +180,8 @@ function HomePage() {
                 style={{ minHeight: '340px' }}
               >
                 <div className="relative h-[340px] cursor-pointer overflow-hidden rounded-[1.5rem]" onClick={() => setTouchImageId((current) => current === service.id ? null : service.id)}>
-                  <img src={optimizeImageUrl(bgImg)} alt={service.name} onError={(event) => handleImageError(event, serviceFallbackImage)} loading="lazy" className={`absolute inset-0 h-full w-full object-cover transition-transform duration-700 ease-out [@media(hover:hover)]:group-hover:-translate-x-full ${touchImageId === service.id ? '-translate-x-full' : ''}`} />
-                  <img src={optimizeImageUrl(alternateImg)} alt={`${service.name} alternate style`} onError={(event) => handleImageError(event, serviceFallbackImage)} loading="lazy" className={`absolute inset-0 h-full w-full translate-x-full object-cover transition-transform duration-700 ease-out [@media(hover:hover)]:group-hover:translate-x-0 ${touchImageId === service.id ? 'translate-x-0' : ''}`} />
+                  <img src={optimizeImageUrl(bgImg, 600)} alt={service.name} onError={(event) => handleImageError(event, serviceFallbackImage)} loading="lazy" decoding="async" className={`absolute inset-0 h-full w-full object-cover transition-transform duration-700 ease-out [@media(hover:hover)]:group-hover:-translate-x-full ${touchImageId === service.id ? '-translate-x-full' : ''}`} />
+                  <img src={optimizeImageUrl(alternateImg, 600)} alt={`${service.name} alternate style`} onError={(event) => handleImageError(event, serviceFallbackImage)} loading="lazy" decoding="async" className={`absolute inset-0 h-full w-full translate-x-full object-cover transition-transform duration-700 ease-out [@media(hover:hover)]:group-hover:translate-x-0 ${touchImageId === service.id ? 'translate-x-0' : ''}`} />
                   <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent" />
                   {cardContent}
                 </div>
