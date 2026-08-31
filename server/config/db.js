@@ -23,6 +23,8 @@ const connectDatabase = async () => {
       if (await Gallery.countDocuments() === 0) await Gallery.insertMany(sampleGallery);
       if (await Settings.countDocuments() === 0) await Settings.create({ key: 'main', ...sampleSettings });
     }
+    // Migration: stamp key:'main' on any settings doc that was created before this field existed
+    await Settings.updateMany({ key: { $exists: false } }, { $set: { key: 'main' } });
     console.log('MongoDB connected successfully');
     return true;
   } catch (error) {

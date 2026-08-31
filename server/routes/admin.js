@@ -1,6 +1,5 @@
 const express = require('express');
 const router = express.Router();
-const { ObjectId } = require('mongodb');
 const { protect } = require('../middleware/auth');
 const { inMemoryStore } = require('../data/sampleData');
 const { makeId, resolveGoogleMapsEmbed } = require('../data/sampleData');
@@ -309,7 +308,12 @@ router.delete('/gallery/:id', (req, res) => {
 });
 
 router.get('/settings', async (req, res) => {
-  if (isDatabaseReady()) return res.json({ success: true, data: (await Settings.findOne({ key: 'main' }).lean()) || {} });
+  if (isDatabaseReady()) {
+    const settings = await Settings.findOne({ key: 'main' }).lean()
+      || await Settings.findOne().lean();
+    console.log('[settings] Admin GET:', settings ? `found, keys: ${Object.keys(settings).join(', ')}` : 'not found');
+    return res.json({ success: true, data: settings || {} });
+  }
   inMemoryStore.settings.googleMapsEmbedUrl = inMemoryStore.settings.googleMapsEmbedUrl || await resolveGoogleMapsEmbed(inMemoryStore.settings.googleMapsUrl);
   res.json({ success: true, data: inMemoryStore.settings });
 });
@@ -343,17 +347,20 @@ router.put('/settings', async (req, res) => {
     }
   }
   if (isDatabaseReady()) {
-    const existingSettings = await Settings.findOne().select('_id googleMapsUrl').lean();
-    const id = existingSettings?._id || new ObjectId();
-    nextSettings.googleMapsEmbedUrl = await resolveGoogleMapsEmbed(nextSettings.googleMapsUrl || existingSettings?.googleMapsUrl || '');
-    console.log('[settings] Saving MongoDB fields:', { id: String(id), fields: Object.keys(nextSettings) });
+    // Preserve existing googleMapsUrl if not being updated in this request
+    const existing = await Settings.findOne({ key: 'main' }).select('googleMapsUrl').lean()
+      || await Settings.findOne().select('googleMapsUrl').lean();
+    nextSettings.googleMapsEmbedUrl = await resolveGoogleMapsEmbed(
+      nextSettings.googleMapsUrl || existing?.googleMapsUrl || ''
+    );
+    console.log('[settings] PUT saving to MongoDB, keys:', Object.keys(nextSettings));
     const settings = await Settings.findOneAndUpdate(
-      { _id: new ObjectId(id) },
-      { $set: nextSettings },
+      { key: 'main' },
+      { $set: { key: 'main', ...nextSettings } },
       { upsert: true, new: true, setDefaultsOnInsert: true },
     ).lean();
-    console.log('[settings] Saved MongoDB fields:', { id: String(settings._id), fields: Object.keys(settings) });
-    return res.json({ success: true, data: settings });
+    console.log('[settings] PUT saved, returned keys:', settings ? Object.keys(settings).join(', ') : 'null');
+    return res.json({ success: true, data: settings || {} });
   }
   inMemoryStore.settings = { ...inMemoryStore.settings, ...nextSettings };
   inMemoryStore.settings.googleMapsEmbedUrl = await resolveGoogleMapsEmbed(inMemoryStore.settings.googleMapsUrl);

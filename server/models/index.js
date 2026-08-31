@@ -163,6 +163,7 @@ const settingsSchema = new mongoose.Schema(
       tiktok: { type: String, default: '' },
       snapchat: { type: String, default: '' },
     },
+    key: { type: String, default: 'main', index: true },
   },
   { timestamps: true },
 );

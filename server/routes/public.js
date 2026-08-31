@@ -168,8 +168,9 @@ router.get('/gallery', async (req, res) => {
 
 router.get('/settings', async (req, res) => {
   if (isDatabaseReady()) {
-    const settings = await Settings.findOne().lean();
-    console.log('[settings] Public MongoDB read:', { found: Boolean(settings), fields: settings ? Object.keys(settings) : [] });
+    const settings = await Settings.findOne({ key: 'main' }).lean()
+      || await Settings.findOne().lean();
+    console.log('[settings] Public GET:', settings ? `found, keys: ${Object.keys(settings).join(', ')}` : 'not found');
     return res.json({ success: true, data: settings || {} });
   }
   const settings = {
