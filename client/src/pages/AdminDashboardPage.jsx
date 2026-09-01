@@ -129,6 +129,14 @@ function AdminDashboardPage() {
   const [period, setPeriod] = useState("month");
   const [loading, setLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState("");
+  const [editingBookingId, setEditingBookingId] = useState(null);
+  const [bookingEditor, setBookingEditor] = useState({
+    date: "",
+    time: "",
+    location: "",
+    notes: "",
+    status: "Pending",
+  });
 
   useEffect(() => {
     console.log("[settings] Admin render image fields", {
@@ -343,6 +351,85 @@ function AdminDashboardPage() {
     `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(booking.googleLocation || booking.location || "Atonsu, Kumasi, Ghana")}`;
   const orderMapLink = (order) =>
     `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(order.googleLocation || order.address || `${order.city}, ${order.region}`)}`;
+  const paymentStatusClasses = {
+    Paid: "bg-green-100 text-green-700",
+    Pending: "bg-amber-100 text-amber-700",
+    Failed: "bg-red-100 text-red-700",
+  };
+  const bookingStatusClasses = {
+    Pending: "bg-amber-100 text-amber-700",
+    Confirmed: "bg-sky-100 text-sky-700",
+    Completed: "bg-green-100 text-green-700",
+    Cancelled: "bg-red-100 text-red-700",
+  };
+  const formatMoney = (value) =>
+    `GHS ${Number(value || 0).toLocaleString(undefined, {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    })}`;
+
+  const openEditBooking = (booking) => {
+    setEditingBookingId(booking.id);
+    setBookingEditor({
+      date: booking.date || "",
+      time: booking.time || "",
+      location: booking.location || booking.googleLocation || "",
+      notes: booking.notes || "",
+      status: booking.status || "Pending",
+    });
+  };
+
+  const saveBookingEdit = async () => {
+    if (!editingBookingId) return;
+    try {
+      const response = await axios.put(
+        `/api/admin/bookings/${editingBookingId}`,
+        {
+          date: bookingEditor.date,
+          time: bookingEditor.time,
+          location: bookingEditor.location,
+          googleLocation: bookingEditor.location,
+          notes: bookingEditor.notes,
+          status: bookingEditor.status,
+        },
+        authConfig(),
+      );
+      const updatedBooking = response.data.data;
+      setAllBookings((bookings) =>
+        bookings.map((booking) =>
+          booking.id === editingBookingId ? updatedBooking : booking,
+        ),
+      );
+      setRecentBookings((bookings) =>
+        bookings.map((booking) =>
+          booking.id === editingBookingId ? updatedBooking : booking,
+        ),
+      );
+      setEditingBookingId(null);
+    } catch (error) {
+      console.error(error);
+      alert("Unable to update this booking. Please try again.");
+    }
+  };
+
+  const deleteBooking = async (bookingId) => {
+    if (!window.confirm("Delete this booking? This action cannot be undone.")) return;
+    try {
+      await axios.delete(`/api/admin/bookings/${bookingId}`, authConfig());
+      setAllBookings((bookings) =>
+        bookings.filter((booking) => booking.id !== bookingId),
+      );
+      setRecentBookings((bookings) =>
+        bookings.filter((booking) => booking.id !== bookingId),
+      );
+      if (editingBookingId === bookingId) {
+        setEditingBookingId(null);
+      }
+    } catch (error) {
+      console.error(error);
+      alert("Unable to delete this booking. Please try again.");
+    }
+  };
 
   const openNewStyleForm = () => {
     setEditingStyleId(null);
@@ -743,104 +830,270 @@ function AdminDashboardPage() {
         </div>
       )}
       {activeView === "bookings" && (
-        <div className="overflow-x-auto rounded-[1.75rem] border border-[#ead4dd] bg-[#fffafc] p-6 shadow-soft">
-          <h2 className="mb-4 text-xl font-black uppercase text-[#5b2b45]">
-            All Bookings
-          </h2>
-          <table className="w-full min-w-[720px] text-left text-sm">
-            <thead className="border-b border-[#ead4dd] text-xs uppercase tracking-[0.14em] text-[#7a3855]">
-              <tr>
-                <th className="pb-3">Customer</th>
-                <th className="pb-3">Service</th>
-                <th className="pb-3">Date</th>
-                <th className="pb-3">Location</th>
-                <th className="pb-3">Status</th>
-              </tr>
-            </thead>
-            <tbody>
-              {allBookings.map((booking) => (
-                <tr
-                  key={booking.id}
-                  className="border-b border-[#f0e1e7] last:border-0"
-                >
-                  <td className="py-4 font-semibold text-[#5b2b45]">
-                    {booking.customerName}
-                    <span className="block text-xs font-normal text-[#5f4253]">
-                      {booking.phone}
-                    </span>
-                  </td>
-                  <td className="py-4 text-[#5f4253]">{booking.serviceName}</td>
-                  <td className="py-4 text-[#5f4253]">
-                    {booking.date}
-                    <span className="block text-xs">{booking.time}</span>
-                  </td>
-                  <td className="max-w-[220px] py-4 text-[#5f4253]">
-                    <span className="block">
-                      {booking.location || "Atonsu, Kumasi, Ghana"}
-                    </span>
+        <div className="rounded-[1.75rem] border border-[#ead4dd] bg-[#fffafc] p-6 shadow-soft">
+          <div className="mb-5 flex items-center justify-between gap-3">
+            <h2 className="text-xl font-black uppercase text-[#5b2b45]">
+              All Bookings
+            </h2>
+            <span className="text-xs font-semibold uppercase tracking-[0.2em] text-[#7a3855]">
+              {allBookings.length} total
+            </span>
+          </div>
+
+          <div className="space-y-4">
+            {allBookings.map((booking) => (
+              <div
+                key={booking.id}
+                className="rounded-2xl border border-[#ead4dd] bg-white p-4 shadow-sm"
+              >
+                <div className="flex flex-col gap-3 border-b border-[#f0e1e7] pb-4 md:flex-row md:items-center md:justify-between">
+                  <div>
+                    <div className="text-lg font-black text-[#5b2b45]">
+                      {booking.customerName}
+                    </div>
+                    <div className="text-sm text-[#5f4253]">
+                      {booking.serviceName}
+                    </div>
+                  </div>
+
+                  <div className="flex flex-wrap items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => openEditBooking(booking)}
+                      className="rounded-md border border-[#d9b2c2] bg-[#fdf3f7] px-3 py-1.5 text-xs font-semibold text-[#5b2b45]"
+                    >
+                      Edit booking
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => deleteBooking(booking.id)}
+                      className="rounded-md border border-red-200 bg-red-50 px-3 py-1.5 text-xs font-semibold text-red-600"
+                    >
+                      Delete
+                    </button>
                     <a
                       href={mapLink(booking)}
                       target="_blank"
                       rel="noreferrer"
-                      className="mt-1 inline-flex items-center gap-1 font-semibold text-[#7a3855] underline"
+                      className="inline-flex items-center gap-1 rounded-md border border-[#d9b2c2] bg-white px-3 py-1.5 text-xs font-semibold text-[#5b2b45]"
                     >
-                      <ExternalLink size={12} /> Open map
+                      <ExternalLink size={12} /> View map
                     </a>
-                  </td>
-                  <td className="py-4">
-                    <div className="space-y-3">
-                      <select
-                        value={booking.status}
-                        onChange={(event) =>
-                          updateBookingStatus(booking.id, event.target.value)
-                        }
-                        className="rounded-md border border-[#ead4dd] bg-white px-2 py-1 text-xs font-semibold text-[#5b2b45]"
-                      >
-                        <option>Pending</option>
-                        <option>Confirmed</option>
-                        <option>Completed</option>
-                        <option>Cancelled</option>
-                      </select>
+                  </div>
+                </div>
 
-                      <div className="grid grid-cols-2 gap-2">
-                        <div className="rounded-lg border border-dashed border-[#ead4dd] bg-white p-2">
-                          <div className="mb-2 text-[10px] font-bold uppercase tracking-[0.2em] text-[#7a3855]">Image 1</div>
-                          <button
-                            type="button"
-                            onClick={() => uploadBookingImage(booking.id, "bookingImage1")}
-                            className="mb-2 rounded-md bg-[#5b2b45] px-2 py-1 text-[10px] font-semibold text-white"
-                          >
-                            Upload
-                          </button>
-                          {booking.bookingImage1 ? (
-                            <img src={optimizeImageUrl(booking.bookingImage1)} alt="booking image 1" onError={(event) => handleImageError(event)} loading="lazy" className="h-16 w-full rounded object-cover" />
-                          ) : (
-                            <div className="flex h-16 w-full items-center justify-center rounded bg-[#f9eef2] text-[10px] text-[#7a3855]">No image</div>
-                          )}
-                        </div>
-
-                        <div className="rounded-lg border border-dashed border-[#ead4dd] bg-white p-2">
-                          <div className="mb-2 text-[10px] font-bold uppercase tracking-[0.2em] text-[#7a3855]">Image 2</div>
-                          <button
-                            type="button"
-                            onClick={() => uploadBookingImage(booking.id, "bookingImage2")}
-                            className="mb-2 rounded-md bg-[#5b2b45] px-2 py-1 text-[10px] font-semibold text-white"
-                          >
-                            Upload
-                          </button>
-                          {booking.bookingImage2 ? (
-                            <img src={optimizeImageUrl(booking.bookingImage2)} alt="booking image 2" onError={(event) => handleImageError(event)} loading="lazy" className="h-16 w-full rounded object-cover" />
-                          ) : (
-                            <div className="flex h-16 w-full items-center justify-center rounded bg-[#f9eef2] text-[10px] text-[#7a3855]">No image</div>
-                          )}
-                        </div>
+                <div className="mt-4 grid gap-4 xl:grid-cols-3">
+                  <div className="rounded-xl bg-[#fff8fb] p-3">
+                    <div className="mb-2 text-[10px] font-bold uppercase tracking-[0.2em] text-[#7a3855]">
+                      Customer contact
+                    </div>
+                    <div className="space-y-2 text-sm text-[#5f4253]">
+                      <div>
+                        <span className="block text-[10px] uppercase tracking-[0.14em] text-[#7a3855]">
+                          Name
+                        </span>
+                        <span className="font-semibold text-[#5b2b45]">
+                          {booking.customerName}
+                        </span>
+                      </div>
+                      <div>
+                        <span className="block text-[10px] uppercase tracking-[0.14em] text-[#7a3855]">
+                          Phone
+                        </span>
+                        <span>{booking.phone || "Not provided"}</span>
+                      </div>
+                      <div>
+                        <span className="block text-[10px] uppercase tracking-[0.14em] text-[#7a3855]">
+                          Email
+                        </span>
+                        <span>{booking.email || "Not provided"}</span>
                       </div>
                     </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+                  </div>
+
+                  <div className="rounded-xl bg-[#fff8fb] p-3">
+                    <div className="mb-2 text-[10px] font-bold uppercase tracking-[0.2em] text-[#7a3855]">
+                      Booking details
+                    </div>
+                    <div className="space-y-2 text-sm text-[#5f4253]">
+                      <div>
+                        <span className="block text-[10px] uppercase tracking-[0.14em] text-[#7a3855]">
+                          Service
+                        </span>
+                        <span className="font-semibold text-[#5b2b45]">
+                          {booking.serviceName}
+                        </span>
+                      </div>
+                      <div>
+                        <span className="block text-[10px] uppercase tracking-[0.14em] text-[#7a3855]">
+                          Date & time
+                        </span>
+                        <span>
+                          {booking.date} {booking.time}
+                        </span>
+                      </div>
+                      <div>
+                        <span className="block text-[10px] uppercase tracking-[0.14em] text-[#7a3855]">
+                          Location
+                        </span>
+                        <span>{booking.location || "Atonsu, Kumasi, Ghana"}</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="rounded-xl bg-[#fff8fb] p-3">
+                    <div className="mb-2 text-[10px] font-bold uppercase tracking-[0.2em] text-[#7a3855]">
+                      Payment status
+                    </div>
+                    <div className="space-y-2 text-sm text-[#5f4253]">
+                      <div>
+                        <span className="block text-[10px] uppercase tracking-[0.14em] text-[#7a3855]">
+                          Plan
+                        </span>
+                        <span className="font-semibold text-[#5b2b45]">
+                          {booking.paymentOption === "half" ? "50% deposit" : "Full payment"}
+                        </span>
+                      </div>
+                      <div>
+                        <span className="block text-[10px] uppercase tracking-[0.14em] text-[#7a3855]">
+                          Amount paid
+                        </span>
+                        <span>{formatMoney(booking.paymentAmount || 0)}</span>
+                      </div>
+                      <div>
+                        <span className="block text-[10px] uppercase tracking-[0.14em] text-[#7a3855]">
+                          Reference
+                        </span>
+                        <span>{booking.reference || "Not available"}</span>
+                      </div>
+                      <div>
+                        <span className="block text-[10px] uppercase tracking-[0.14em] text-[#7a3855]">
+                          Status
+                        </span>
+                        <span
+                          className={`inline-flex rounded-full px-2 py-1 text-xs font-bold ${paymentStatusClasses[booking.paymentStatus] || "bg-slate-100 text-slate-700"}`}
+                        >
+                          {booking.paymentStatus || "Pending"}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="mt-4 flex flex-col gap-3 rounded-xl bg-[#faf3f7] p-3 md:flex-row md:items-center md:justify-between">
+                  <div className="flex items-center gap-3">
+                    <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#7a3855]">
+                      Booking status
+                    </span>
+                    <select
+                      value={booking.status || "Pending"}
+                      onChange={(event) =>
+                        updateBookingStatus(booking.id, event.target.value)
+                      }
+                      className="rounded-md border border-[#ead4dd] bg-white px-2 py-1 text-xs font-semibold text-[#5b2b45]"
+                    >
+                      <option value="Pending">Pending</option>
+                      <option value="Confirmed">Confirmed</option>
+                      <option value="Completed">Completed</option>
+                      <option value="Cancelled">Cancelled</option>
+                    </select>
+                  </div>
+
+                  <span
+                    className={`inline-flex rounded-full px-2.5 py-1 text-xs font-bold ${bookingStatusClasses[booking.status] || "bg-slate-100 text-slate-700"}`}
+                  >
+                    {booking.status || "Pending"}
+                  </span>
+                </div>
+
+                {editingBookingId === booking.id && (
+                  <div className="mt-4 rounded-xl border border-[#ead4dd] bg-[#fffafc] p-4">
+                    <div className="mb-3 text-xs font-bold uppercase tracking-[0.2em] text-[#7a3855]">
+                      Edit booking
+                    </div>
+                    <div className="grid gap-3 md:grid-cols-2">
+                      <label className="text-xs font-semibold text-[#5b2b45]">
+                        Date
+                        <input
+                          type="date"
+                          value={bookingEditor.date}
+                          onChange={(event) =>
+                            setBookingEditor((prev) => ({
+                              ...prev,
+                              date: event.target.value,
+                            }))
+                          }
+                          className="mt-1 w-full rounded-md border border-[#ead4dd] bg-white px-3 py-2 text-sm text-[#5f4253]"
+                        />
+                      </label>
+
+                      <label className="text-xs font-semibold text-[#5b2b45]">
+                        Time
+                        <input
+                          type="time"
+                          value={bookingEditor.time}
+                          onChange={(event) =>
+                            setBookingEditor((prev) => ({
+                              ...prev,
+                              time: event.target.value,
+                            }))
+                          }
+                          className="mt-1 w-full rounded-md border border-[#ead4dd] bg-white px-3 py-2 text-sm text-[#5f4253]"
+                        />
+                      </label>
+
+                      <label className="text-xs font-semibold text-[#5b2b45] md:col-span-2">
+                        Location
+                        <input
+                          type="text"
+                          value={bookingEditor.location}
+                          onChange={(event) =>
+                            setBookingEditor((prev) => ({
+                              ...prev,
+                              location: event.target.value,
+                            }))
+                          }
+                          className="mt-1 w-full rounded-md border border-[#ead4dd] bg-white px-3 py-2 text-sm text-[#5f4253]"
+                        />
+                      </label>
+
+                      <label className="text-xs font-semibold text-[#5b2b45] md:col-span-2">
+                        Notes
+                        <textarea
+                          value={bookingEditor.notes}
+                          onChange={(event) =>
+                            setBookingEditor((prev) => ({
+                              ...prev,
+                              notes: event.target.value,
+                            }))
+                          }
+                          rows={3}
+                          className="mt-1 w-full rounded-md border border-[#ead4dd] bg-white px-3 py-2 text-sm text-[#5f4253]"
+                        />
+                      </label>
+                    </div>
+
+                    <div className="mt-3 flex justify-end gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setEditingBookingId(null)}
+                        className="rounded-md border border-[#ead4dd] bg-white px-3 py-1.5 text-xs font-semibold text-[#5b2b45]"
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        type="button"
+                        onClick={saveBookingEdit}
+                        className="rounded-md bg-[#5b2b45] px-3 py-1.5 text-xs font-semibold text-white"
+                      >
+                        Save changes
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
         </div>
       )}
       {activeView === "orders" && (
