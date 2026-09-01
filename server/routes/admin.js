@@ -349,7 +349,8 @@ router.get('/gallery', async (req, res) => {
 });
 
 router.post('/gallery', (req, res) => {
-  const item = { id: makeId('gallery'), ...req.body, isActive: req.body.isActive ?? true };
+  const galleryId = makeId('gallery');
+  const item = { _id: galleryId, id: galleryId, ...req.body, isActive: req.body.isActive ?? true };
   if (isDatabaseReady()) {
     return Gallery.create(item)
       .then((saved) => res.status(201).json({ success: true, data: present(saved) }))
@@ -367,9 +368,9 @@ router.delete('/gallery/:id', async (req, res) => {
 
   if (isDatabaseReady()) {
     try {
-      const result = await Gallery.deleteOne({ $or: [{ id }, { _id: id }] });
+      const result = await Gallery.deleteOne({ $or: [{ _id: id }, { id }] });
       if (!result.deletedCount) {
-        const byStringId = await Gallery.findOne({ id }).lean();
+        const byStringId = await Gallery.findOne({ $or: [{ _id: id }, { id }] }).lean();
         if (!byStringId) return res.status(404).json({ message: 'Gallery image not found' });
       }
       console.log('[admin-gallery] deleted image', { id, deletedCount: result.deletedCount });

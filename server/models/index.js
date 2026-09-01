@@ -120,6 +120,10 @@ const customerSchema = new mongoose.Schema(
 
 const gallerySchema = new mongoose.Schema(
   {
+    _id: {
+      type: String,
+      default: () => `gallery-${Math.random().toString(36).slice(2, 10)}`,
+    },
     id: { type: String, unique: true, index: true },
     title: { type: String, required: true },
     category: { type: String, enum: ['All', 'Braids', 'Curls', 'Piercing', 'Other'], default: 'Other' },
@@ -131,7 +135,7 @@ const gallerySchema = new mongoose.Schema(
 );
 
 // Gallery records in this app intentionally use string IDs like "gallery-abcdef12".
-// Keep the schema compatible with those IDs and avoid casting them to ObjectId.
+// Keeping _id as a String prevents Mongo from trying to cast gallery-* values into ObjectId.
 
 const contactMessageSchema = new mongoose.Schema(
   {
