@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Outlet, Link, NavLink, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { Bell, CalendarDays, ExternalLink, FileText, Image, LayoutDashboard, LogOut, Mail, Menu, MessageSquare, Package, Settings, ShoppingBag, Star, Users, X } from 'lucide-react';
+import NotificationBell from '../components/NotificationBell';
 
 function AdminLayout() {
   const navigate = useNavigate();
@@ -112,7 +113,7 @@ function AdminLayout() {
             </div>
             <div className="flex items-center gap-3">
               <label className="hidden items-center gap-2 rounded-full border border-[#ead4dd] bg-white px-3 py-2 text-sm text-[#7a3855] md:flex"><span className="text-xs uppercase tracking-[0.12em]">Search</span><input aria-label="Search dashboard" placeholder="Bookings, products..." className="w-36 bg-transparent text-[#5b2b45] outline-none placeholder:text-[#b48b9c]" /></label>
-              <button type="button" aria-label="View notifications" className="relative rounded-full p-2 text-[#5b2b45] transition hover:bg-[#f9eaf1]"><Bell size={19} /><span className="absolute right-1 top-1 h-2 w-2 rounded-full bg-[#b36a86]" /></button>
+              <NotificationBell />
               <div className="hidden text-right sm:block"><div className="text-sm font-bold text-[#5b2b45]">Admin</div><div className="text-xs text-[#7a3855]">Administrator</div></div>
               <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[#5b2b45] text-sm font-bold text-white">A</div>
             </div>

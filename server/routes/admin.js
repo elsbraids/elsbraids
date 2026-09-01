@@ -330,6 +330,19 @@ router.put('/messages/:id', async (req, res) => {
   res.json({ success: true, data: message });
 });
 
+router.delete('/messages/:id', async (req, res) => {
+  if (isDatabaseReady()) {
+    const result = await ContactMessage.deleteOne({ _id: req.params.id });
+    if (!result.deletedCount) return res.status(404).json({ message: 'Message not found' });
+    return res.json({ success: true, message: 'Message deleted' });
+  }
+
+  const index = inMemoryStore.contactMessages.findIndex((item) => item.id === req.params.id);
+  if (index === -1) return res.status(404).json({ message: 'Message not found' });
+  inMemoryStore.contactMessages.splice(index, 1);
+  return res.json({ success: true, message: 'Message deleted' });
+});
+
 router.get('/gallery', async (req, res) => {
   if (isDatabaseReady()) return res.json({ success: true, data: (await Gallery.find().sort({ createdAt: -1 }).lean()).map(present) });
   res.json({ success: true, data: inMemoryStore.gallery });

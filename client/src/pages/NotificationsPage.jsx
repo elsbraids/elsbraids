@@ -11,17 +11,27 @@ const NotificationsPage = () => {
 
   useEffect(() => {
     fetchNotifications();
-  }, []);
+    const interval = setInterval(fetchNotifications, 30000);
+    return () => clearInterval(interval);
+  }, [token]);
 
   const fetchNotifications = async () => {
-    if (!token) return;
+    if (!token) {
+      setLoading(false);
+      return;
+    }
+
     try {
       const res = await fetch('/api/notifications', {
-        headers: { Authorization: `Bearer ${token}` }
+        credentials: 'include',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
       });
       const json = await res.json();
       if (json.success) {
-        setNotifications(json.data);
+        setNotifications(Array.isArray(json.data) ? json.data : []);
       }
     } catch (err) {
       console.error(err);
@@ -31,12 +41,20 @@ const NotificationsPage = () => {
   };
 
   const markAsRead = async (id) => {
+    if (!token) return;
+
     try {
       await fetch(`/api/notifications/${id}/read`, {
         method: 'PUT',
-        headers: { Authorization: `Bearer ${token}` }
+        credentials: 'include',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
       });
-      setNotifications(notifications.map(n => n._id === id || n.id === id ? { ...n, read: true } : n));
+      setNotifications((current) =>
+        current.map((n) => (n._id === id || n.id === id ? { ...n, read: true } : n)),
+      );
     } catch (err) {
       console.error(err);
     }

@@ -200,6 +200,18 @@ function AdminDashboardPage() {
     }
   };
 
+  const deleteAdminMessage = async (messageId) => {
+    if (!window.confirm("Delete this message? This action cannot be undone.")) return;
+
+    try {
+      await axios.delete(`/api/admin/messages/${messageId}`, authConfig());
+      setMessages((items) => items.filter((message) => message.id !== messageId));
+    } catch (error) {
+      console.error(error);
+      alert("Unable to delete this message. Please try again.");
+    }
+  };
+
   useEffect(() => {
     loadDashboard();
   }, []);
@@ -1165,20 +1177,35 @@ function AdminDashboardPage() {
                     </select>
                   </td>
                   <td className="py-4">
-                    <select
-                      value={order.paymentStatus}
-                      onChange={(event) =>
-                        updateOrderStatus(order.id, {
-                          paymentStatus: event.target.value,
-                        })
-                      }
-                      className="rounded-md border border-[#ead4dd] bg-white px-2 py-1 text-xs font-semibold text-[#5b2b45]"
-                    >
-                      <option>Pending</option>
-                      <option>Paid</option>
-                      <option>Failed</option>
-                      <option>Refunded</option>
-                    </select>
+                    <div className="space-y-2">
+                      <span className={`inline-flex rounded-full px-2 py-1 text-[10px] font-bold uppercase tracking-[0.12em] ${
+                        order.paymentStatus === "Paid"
+                          ? "bg-green-100 text-green-700"
+                          : order.paymentStatus === "Failed"
+                            ? "bg-red-100 text-red-700"
+                            : "bg-amber-100 text-amber-700"
+                      }`}>
+                        {order.paymentStatus || "Pending"}
+                      </span>
+                      <div className="text-xs text-[#5f4253]">
+                        <div><span className="font-semibold text-[#5b2b45]">Method:</span> {order.paymentMethod || "Paystack"}</div>
+                        <div><span className="font-semibold text-[#5b2b45]">Ref:</span> {order.paymentReference || "Not available"}</div>
+                        <div><span className="font-semibold text-[#5b2b45]">Paid:</span> {order.paymentDate ? new Date(order.paymentDate).toLocaleString() : (order.updatedAt || order.createdAt ? new Date(order.updatedAt || order.createdAt).toLocaleString() : "Not recorded")}</div>
+                      </div>
+                      <select
+                        value={order.paymentStatus || "Pending"}
+                        onChange={(event) =>
+                          updateOrderStatus(order.id, {
+                            paymentStatus: event.target.value,
+                          })
+                        }
+                        className="rounded-md border border-[#ead4dd] bg-white px-2 py-1 text-xs font-semibold text-[#5b2b45]"
+                      >
+                        <option value="Pending">Pending</option>
+                        <option value="Paid">Paid</option>
+                        <option value="Failed">Failed</option>
+                      </select>
+                    </div>
                   </td>
                 </tr>
               ))}
@@ -1574,13 +1601,9 @@ function AdminDashboardPage() {
                       {item.category}
                     </div>
                   </div>
-                  <button
-                    type="button"
-                    onClick={() => deleteGalleryImage(item)}
-                    className="text-xs font-semibold text-red-700 underline"
-                  >
-                    Delete
-                  </button>
+                  <span className="text-xs font-semibold uppercase tracking-[0.14em] text-[#7a3855]">
+                    Read-only
+                  </span>
                 </div>
               </div>
             ))}
@@ -1608,9 +1631,18 @@ function AdminDashboardPage() {
                     <div className="font-semibold text-[#5b2b45]">
                       {message.name}
                     </div>
-                    <span className="text-xs text-[#7a3855]">
-                      {new Date(message.createdAt).toLocaleDateString()}
-                    </span>
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs text-[#7a3855]">
+                        {new Date(message.createdAt).toLocaleDateString()}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => deleteAdminMessage(message.id)}
+                        className="rounded-md border border-red-200 bg-red-50 px-2 py-1 text-[10px] font-bold uppercase tracking-[0.12em] text-red-600"
+                      >
+                        Delete
+                      </button>
+                    </div>
                   </div>
                   <div className="mt-1 text-sm text-[#5f4253]">
                     {message.email} · {message.phone}
