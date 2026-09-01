@@ -816,24 +816,6 @@ function AdminDashboardPage() {
     );
   };
 
-  const deleteGalleryImage = async (item) => {
-    if (
-      !window.confirm(
-        `Delete ${item.title || "this photo"}? This action cannot be undone.`,
-      )
-    )
-      return;
-    try {
-      await axios.delete(`/api/admin/gallery/${item.id}`, authConfig());
-      setGallery((items) =>
-        items.filter((galleryItem) => galleryItem.id !== item.id),
-      );
-    } catch (error) {
-      console.error(error);
-      alert("Unable to delete this photo. Please try again.");
-    }
-  };
-
   return (
     <div className="space-y-8">
       {errorMessage && (
@@ -1592,22 +1574,13 @@ function AdminDashboardPage() {
                   loading="lazy"
                   className="h-40 w-full object-cover"
                 />
-                <div className="flex items-center justify-between gap-2 p-3">
-                  <div>
-                    <div className="font-semibold text-[#5b2b45]">
-                      {item.title}
-                    </div>
-                    <div className="mt-1 text-xs text-[#7a3855]">
-                      {item.category}
-                    </div>
+                <div className="p-3">
+                  <div className="font-semibold text-[#5b2b45]">
+                    {item.title}
                   </div>
-                  <button
-                    type="button"
-                    onClick={() => deleteGalleryImage(item)}
-                    className="text-xs font-semibold uppercase tracking-[0.12em] text-red-700 underline"
-                  >
-                    Delete
-                  </button>
+                  <div className="mt-1 text-xs text-[#7a3855]">
+                    {item.category}
+                  </div>
                 </div>
               </div>
             ))}

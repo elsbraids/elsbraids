@@ -355,12 +355,6 @@ router.post('/gallery', (req, res) => {
   res.status(201).json({ success: true, data: item });
 });
 
-router.delete('/gallery/:id', (req, res) => {
-  if (isDatabaseReady()) return Gallery.deleteOne({ $or: [{ id: req.params.id }, { _id: req.params.id }] }).then((result) => res.json({ success: true, message: result.deletedCount ? 'Gallery item deleted' : 'Gallery item not found' }));
-  inMemoryStore.gallery = inMemoryStore.gallery.filter((item) => item.id !== req.params.id);
-  res.json({ success: true, message: 'Gallery item deleted' });
-});
-
 router.get('/settings', async (req, res) => {
   if (isDatabaseReady()) {
     const settings = await Settings.findOne({ key: 'main' }).lean()
