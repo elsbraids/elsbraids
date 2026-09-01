@@ -1601,9 +1601,13 @@ function AdminDashboardPage() {
                       {item.category}
                     </div>
                   </div>
-                  <span className="text-xs font-semibold uppercase tracking-[0.14em] text-[#7a3855]">
-                    Read-only
-                  </span>
+                  <button
+                    type="button"
+                    onClick={() => deleteGalleryImage(item)}
+                    className="text-xs font-semibold uppercase tracking-[0.12em] text-red-700 underline"
+                  >
+                    Delete
+                  </button>
                 </div>
               </div>
             ))}
