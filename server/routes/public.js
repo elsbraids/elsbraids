@@ -193,9 +193,12 @@ router.get('/settings', async (req, res) => {
 
 router.post('/bookings', customerProtect, actionLimiter, async (req, res) => {
   const { phone, serviceName, date, time, notes, location, googleLocation, paymentReference, paymentOption, bookingImage1, bookingImage2 } = req.body;
-  const customerName = req.customer.fullName;
+  const customerName = req.customer.fullName || req.customer.name || 'Customer';
   const email = req.customer.email;
-  const service = inMemoryStore.services.find((item) => item.name === serviceName || item.id === serviceName);
+  const dbService = isDatabaseReady()
+    ? await Service.findOne({ $or: [{ id: serviceName }, { name: serviceName }] }).lean()
+    : null;
+  const service = dbService || inMemoryStore.services.find((item) => item.name === serviceName || item.id === serviceName);
 
   if (!phone || !service || !date || !time || !paymentReference || !['half', 'full'].includes(paymentOption) || !/^\d{4}-\d{2}-\d{2}$/.test(String(date)) || !['9:00 AM', '10:00 AM', '11:00 AM', '1:00 PM', '2:00 PM', '3:00 PM', '4:00 PM', '5:00 PM'].includes(time)) {
     return res.status(400).json({ message: 'Please provide all required booking information' });
@@ -214,7 +217,8 @@ router.post('/bookings', customerProtect, actionLimiter, async (req, res) => {
   const transaction = verification?.data;
   if (!verification?.status || transaction?.status !== 'success' || transaction.currency !== 'GHS' || Number(transaction.amount) !== expectedAmount || String(transaction.customer?.email || '').toLowerCase() !== email.toLowerCase()) return res.status(400).json({ message: 'Payment verification failed.' });
 
-  const reference = `ELS-${new Date().getFullYear()}-${String(inMemoryStore.bookings.length + 1).padStart(5, '0')}`;
+  const bookingCount = isDatabaseReady() ? await Booking.countDocuments() : inMemoryStore.bookings.length;
+  const reference = `ELS-${new Date().getFullYear()}-${String(bookingCount + 1).padStart(5, '0')}`;
   const booking = {
     id: makeId('booking'),
     reference,

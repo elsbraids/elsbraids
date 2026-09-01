@@ -1,9 +1,12 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const jwt = require('jsonwebtoken');
+const mongoose = require('mongoose');
 const { getJwtSecret, JWT_ISSUER, JWT_AUDIENCE } = require('../config/security');
 const { parseSafeUrl, parseItems } = require('../utils/requestValidation');
-const { Booking, ContactMessage } = require('../models');
+const { Booking, ContactMessage, Service, Product, Gallery, Settings } = require('../models');
+const { connectDatabase } = require('../config/db');
+const { sampleServices } = require('../data/sampleData');
 
 test('JWT secret is not the old predictable demo secret', () => {
   assert.notEqual(getJwtSecret(), ['demo', 'secret'].join('-'));
@@ -49,4 +52,54 @@ test('ContactMessage schema includes required persisted data fields', () => {
   assert.ok(fields.includes('message'));
   assert.ok(fields.includes('createdAt'));
   assert.ok(fields.includes('status'));
+});
+
+test('connectDatabase seeds service catalog records when Mongo is empty', async () => {
+  const originalConnect = mongoose.connect;
+  const originalDeleteMany = Service.deleteMany;
+  const originalCountDocuments = Service.countDocuments;
+  const originalServiceInsertMany = Service.insertMany;
+  const originalProductCountDocuments = Product.countDocuments;
+  const originalProductInsertMany = Product.insertMany;
+  const originalGalleryCountDocuments = Gallery.countDocuments;
+  const originalGalleryInsertMany = Gallery.insertMany;
+  const originalSettingsCountDocuments = Settings.countDocuments;
+  const originalSettingsCreate = Settings.create;
+  const originalSettingsUpdateMany = Settings.updateMany;
+
+  process.env.MONGODB_URI = 'mongodb://localhost:27017/elsbraids-test';
+  mongoose.connect = async () => {};
+  Service.deleteMany = async () => {};
+  Service.countDocuments = async () => 0;
+  Product.countDocuments = async () => 0;
+  Gallery.countDocuments = async () => 0;
+  Settings.countDocuments = async () => 0;
+  let insertedServices = [];
+  Service.insertMany = async (items) => {
+    insertedServices = items;
+    return items;
+  };
+  Product.insertMany = async () => [];
+  Gallery.insertMany = async () => [];
+  Settings.create = async () => ({ key: 'main' });
+  Settings.updateMany = async () => ({ ok: 1 });
+
+  try {
+    const result = await connectDatabase();
+    assert.equal(result, true);
+    assert.ok(insertedServices.length >= sampleServices.length);
+    assert.deepEqual(insertedServices.map((service) => service.id).slice(0, 3), sampleServices.map((service) => service.id).slice(0, 3));
+  } finally {
+    mongoose.connect = originalConnect;
+    Service.deleteMany = originalDeleteMany;
+    Service.countDocuments = originalCountDocuments;
+    Service.insertMany = originalServiceInsertMany;
+    Product.countDocuments = originalProductCountDocuments;
+    Product.insertMany = originalProductInsertMany;
+    Gallery.countDocuments = originalGalleryCountDocuments;
+    Gallery.insertMany = originalGalleryInsertMany;
+    Settings.countDocuments = originalSettingsCountDocuments;
+    Settings.create = originalSettingsCreate;
+    Settings.updateMany = originalSettingsUpdateMany;
+  }
 });
