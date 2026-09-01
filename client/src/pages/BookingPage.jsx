@@ -48,14 +48,18 @@ function BookingPage() {
   const [isLoadingServices, setIsLoadingServices] = useState(true);
   const [selectedServiceId, setSelectedServiceId] = useState(searchParams.get('service') || '');
   const [mapQuery, setMapQuery] = useState('Atonsu, Kumasi, Ghana');
-  
+  const paystackReference = searchParams.get('reference');
+
   // Form State
   const [form, setForm] = useState(() => {
     try {
       const draft = sessionStorage.getItem(bookingDraftKey);
       if (draft) {
-        sessionStorage.removeItem(bookingDraftKey);
-        return JSON.parse(draft);
+        const parsed = JSON.parse(draft);
+        if (!paystackReference) {
+          sessionStorage.removeItem(bookingDraftKey);
+        }
+        return parsed;
       }
     } catch { }
     return {
@@ -79,6 +83,59 @@ function BookingPage() {
   const [errors, setErrors] = useState({});
   const [statusMessage, setStatusMessage] = useState(null); // { type: 'success' | 'error', text: '' }
   const [mapError, setMapError] = useState('');
+
+  useEffect(() => {
+    if (!paystackReference) return;
+
+    const finalizeBookingPayment = async () => {
+      const savedDraft = sessionStorage.getItem(bookingDraftKey);
+      if (!savedDraft) {
+        setStatusMessage({
+          type: 'error',
+          text: 'Your payment was successful, but the booking details were not found. Please contact support.',
+        });
+        return;
+      }
+
+      try {
+        const verification = await axios.get(`/api/payments/verify/${encodeURIComponent(paystackReference)}`, { withCredentials: true });
+        if (verification.data?.data?.status !== 'success') {
+          throw new Error('Payment verification failed.');
+        }
+
+        const bookingDraft = JSON.parse(savedDraft);
+        const bookingPayload = {
+          customerName: bookingDraft.customerName || form.customerName,
+          phone: bookingDraft.phone || form.phone,
+          email: bookingDraft.email || form.email,
+          serviceName: bookingDraft.serviceName || selectedService?.name || form.serviceName,
+          date: bookingDraft.date || form.date,
+          time: bookingDraft.time || form.time,
+          location: bookingDraft.googleLocation || bookingDraft.location || form.googleLocation || form.location,
+          googleLocation: bookingDraft.googleLocation || bookingDraft.location || form.googleLocation || form.location,
+          notes: bookingDraft.notes || form.notes || '',
+          paymentOption: bookingDraft.paymentOption || form.paymentOption || 'full',
+          paymentReference: paystackReference,
+        };
+
+        await axios.post('/api/bookings', bookingPayload, { withCredentials: true });
+        sessionStorage.removeItem(bookingDraftKey);
+        setStatusMessage({
+          type: 'success',
+          text: 'Your booking has been confirmed and is now visible to the admin dashboard.',
+        });
+        setTimeout(() => navigate('/account/orders', { replace: true }), 1200);
+      } catch (error) {
+        console.error('[booking-payment] redirect verification failed', error);
+        setStatusMessage({
+          type: 'error',
+          text: error.response?.data?.message || error.message || 'Unable to confirm your booking after payment. Please contact support.',
+        });
+      }
+    };
+
+    finalizeBookingPayment();
+  }, [form.customerName, form.date, form.email, form.googleLocation, form.location, form.notes, form.phone, form.serviceName, form.time, form.paymentOption, navigate, paystackReference, selectedService]);
 
   // Load Paystack Inline script
   useEffect(() => {
@@ -281,6 +338,11 @@ function BookingPage() {
         notes: form.notes?.trim() || '',
         paymentOption: form.paymentOption,
       };
+
+      sessionStorage.setItem(bookingDraftKey, JSON.stringify({
+        ...bookingPayload,
+        paymentReference,
+      }));
 
       console.log('[booking-payment] requesting payment init', {
         amount: Math.round(paymentAmount * 100),
