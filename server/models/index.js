@@ -130,6 +130,9 @@ const gallerySchema = new mongoose.Schema(
   { timestamps: true },
 );
 
+// Gallery records in this app intentionally use string IDs like "gallery-abcdef12".
+// Keep the schema compatible with those IDs and avoid casting them to ObjectId.
+
 const contactMessageSchema = new mongoose.Schema(
   {
     customerName: { type: String, required: true },

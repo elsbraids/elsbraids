@@ -350,23 +350,43 @@ router.get('/gallery', async (req, res) => {
 
 router.post('/gallery', (req, res) => {
   const item = { id: makeId('gallery'), ...req.body, isActive: req.body.isActive ?? true };
-  if (isDatabaseReady()) return Gallery.create(item).then((saved) => res.status(201).json({ success: true, data: present(saved) }));
+  if (isDatabaseReady()) {
+    return Gallery.create(item)
+      .then((saved) => res.status(201).json({ success: true, data: present(saved) }))
+      .catch((error) => {
+        console.error('[admin-gallery] create failed:', error.message);
+        return res.status(400).json({ success: false, message: error.message || 'Unable to upload gallery image.' });
+      });
+  }
   inMemoryStore.gallery.unshift(item);
   res.status(201).json({ success: true, data: item });
 });
 
 router.delete('/gallery/:id', async (req, res) => {
+  const { id } = req.params;
+
   if (isDatabaseReady()) {
-    const result = await Gallery.deleteOne({ $or: [{ id: req.params.id }, { _id: req.params.id }] });
-    if (!result.deletedCount) return res.status(404).json({ message: 'Gallery image not found' });
-    console.log('[admin-gallery] deleted image', { id: req.params.id });
-    return res.json({ success: true, message: 'Gallery image deleted' });
+    try {
+      const result = await Gallery.deleteOne({ $or: [{ id }, { _id: id }] });
+      if (!result.deletedCount) {
+        const byStringId = await Gallery.findOne({ id }).lean();
+        if (!byStringId) return res.status(404).json({ message: 'Gallery image not found' });
+      }
+      console.log('[admin-gallery] deleted image', { id, deletedCount: result.deletedCount });
+      return res.json({ success: true, message: 'Gallery image deleted' });
+    } catch (error) {
+      console.error('[admin-gallery] delete failed:', error.message);
+      if (error.name === 'CastError') {
+        return res.status(400).json({ success: false, message: 'Gallery ID is not valid for this record.' });
+      }
+      return res.status(500).json({ success: false, message: 'Unable to delete gallery image.' });
+    }
   }
 
-  const index = inMemoryStore.gallery.findIndex((item) => item.id === req.params.id);
+  const index = inMemoryStore.gallery.findIndex((item) => item.id === id || item._id === id);
   if (index === -1) return res.status(404).json({ message: 'Gallery image not found' });
   inMemoryStore.gallery.splice(index, 1);
-  console.log('[admin-gallery] deleted image in-memory', { id: req.params.id });
+  console.log('[admin-gallery] deleted image in-memory', { id });
   return res.json({ success: true, message: 'Gallery image deleted' });
 });
 
