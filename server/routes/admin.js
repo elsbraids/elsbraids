@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const { protect } = require('../middleware/auth');
-const { inMemoryStore, makeId } = require('../data/sampleData');
+const { inMemoryStore, makeId, resolveGoogleMapsEmbed } = require('../data/sampleData');
 const { cleanText, parseSafeUrl } = require('../utils/requestValidation');
 const { Product, Service, Booking, Order, Customer, Gallery, Settings, ContactMessage } = require('../models');
 const { isDatabaseReady } = require('../utils/database');
