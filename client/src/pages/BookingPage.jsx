@@ -84,6 +84,11 @@ function BookingPage() {
   const [statusMessage, setStatusMessage] = useState(null); // { type: 'success' | 'error', text: '' }
   const [mapError, setMapError] = useState('');
 
+  const selectedService = useMemo(
+    () => services.find((service) => service.name === form.serviceName) || services.find((service) => service.id === selectedServiceId) || null,
+    [form.serviceName, services, selectedServiceId],
+  );
+
   useEffect(() => {
     if (!paystackReference) return;
 
@@ -196,12 +201,6 @@ function BookingPage() {
       setForm((prev) => ({ ...prev, serviceName: match.name }));
     }
   }, [selectedServiceId, services]);
-
-  // Calculate selected service memo
-  const selectedService = useMemo(
-    () => services.find((service) => service.name === form.serviceName) || services.find((service) => service.id === selectedServiceId) || null,
-    [form.serviceName, services, selectedServiceId],
-  );
 
   // Validate form fields prior to submitting/payment
   const validateForm = () => {
