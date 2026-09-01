@@ -7,7 +7,7 @@ const NotificationBell = () => {
   const [notifications, setNotifications] = useState([]);
   const [isOpen, setIsOpen] = useState(false);
   const navigate = useNavigate();
-  const token = localStorage.getItem('customerToken') || localStorage.getItem('adminToken');
+  const token = localStorage.getItem('customerToken') || sessionStorage.getItem('elsAdminToken');
 
   useEffect(() => {
     if (token) {

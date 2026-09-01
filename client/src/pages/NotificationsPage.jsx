@@ -6,8 +6,8 @@ const NotificationsPage = () => {
   const [notifications, setNotifications] = useState([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState('All');
-  const token = localStorage.getItem('customerToken') || localStorage.getItem('adminToken');
-  const role = localStorage.getItem('adminToken') ? 'Admin' : 'Customer';
+  const token = localStorage.getItem('customerToken') || sessionStorage.getItem('elsAdminToken');
+  const role = sessionStorage.getItem('elsAdminToken') ? 'Admin' : 'Customer';
 
   useEffect(() => {
     fetchNotifications();
