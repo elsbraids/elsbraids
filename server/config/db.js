@@ -18,12 +18,10 @@ const connectDatabase = async () => {
     // Clean up any previously seeded sample services
     await Service.deleteMany({ id: { $regex: /^svc-/ } });
 
-    if (process.env.NODE_ENV !== 'production' || process.env.SEED_SAMPLE_DATA === 'true') {
-      if (await Service.countDocuments() === 0) await Service.insertMany(sampleServices.map(({ id, ...item }) => ({ ...item, id })));
-      if (await Product.countDocuments() === 0) await Product.insertMany(sampleProducts.map(({ id, ...item }) => ({ ...item, id })));
-      if (await Gallery.countDocuments() === 0) await Gallery.insertMany(sampleGallery);
-      if (await Settings.countDocuments() === 0) await Settings.create({ key: 'main', ...sampleSettings });
-    }
+    if (await Service.countDocuments() === 0) await Service.insertMany(sampleServices.map(({ id, ...item }) => ({ ...item, id })));
+    if (await Product.countDocuments() === 0) await Product.insertMany(sampleProducts.map(({ id, ...item }) => ({ ...item, id })));
+    if (await Gallery.countDocuments() === 0) await Gallery.insertMany(sampleGallery);
+    if (await Settings.countDocuments() === 0) await Settings.create({ key: 'main', ...sampleSettings });
     // Migration: stamp key:'main' on any settings doc that was created before this field existed
     await Settings.updateMany({ key: { $exists: false } }, { $set: { key: 'main' } });
     console.log('MongoDB connected successfully');

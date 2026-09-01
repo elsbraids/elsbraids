@@ -355,6 +355,21 @@ router.post('/gallery', (req, res) => {
   res.status(201).json({ success: true, data: item });
 });
 
+router.delete('/gallery/:id', async (req, res) => {
+  if (isDatabaseReady()) {
+    const result = await Gallery.deleteOne({ $or: [{ id: req.params.id }, { _id: req.params.id }] });
+    if (!result.deletedCount) return res.status(404).json({ message: 'Gallery image not found' });
+    console.log('[admin-gallery] deleted image', { id: req.params.id });
+    return res.json({ success: true, message: 'Gallery image deleted' });
+  }
+
+  const index = inMemoryStore.gallery.findIndex((item) => item.id === req.params.id);
+  if (index === -1) return res.status(404).json({ message: 'Gallery image not found' });
+  inMemoryStore.gallery.splice(index, 1);
+  console.log('[admin-gallery] deleted image in-memory', { id: req.params.id });
+  return res.json({ success: true, message: 'Gallery image deleted' });
+});
+
 router.get('/settings', async (req, res) => {
   if (isDatabaseReady()) {
     const settings = await Settings.findOne({ key: 'main' }).lean()

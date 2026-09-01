@@ -620,6 +620,18 @@ function AdminDashboardPage() {
     setGalleryForm((form) => ({ ...form, image }));
   };
 
+  const deleteGalleryImage = async (imageId) => {
+    if (!window.confirm("Delete this photo? This action cannot be undone.")) return;
+
+    try {
+      await axios.delete(`/api/admin/gallery/${imageId}`, authConfig());
+      setGallery((items) => items.filter((item) => item.id !== imageId));
+    } catch (error) {
+      console.error(error);
+      alert("Unable to delete this photo. Please try again.");
+    }
+  };
+
   const deleteStyle = async (style) => {
     if (
       !window.confirm(
@@ -1575,11 +1587,22 @@ function AdminDashboardPage() {
                   className="h-40 w-full object-cover"
                 />
                 <div className="p-3">
-                  <div className="font-semibold text-[#5b2b45]">
-                    {item.title}
-                  </div>
-                  <div className="mt-1 text-xs text-[#7a3855]">
-                    {item.category}
+                  <div className="flex items-start justify-between gap-2">
+                    <div>
+                      <div className="font-semibold text-[#5b2b45]">
+                        {item.title}
+                      </div>
+                      <div className="mt-1 text-xs text-[#7a3855]">
+                        {item.category}
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => deleteGalleryImage(item.id)}
+                      className="rounded-md border border-red-200 bg-red-50 px-2 py-1 text-[10px] font-bold uppercase tracking-[0.12em] text-red-600"
+                    >
+                      Delete
+                    </button>
                   </div>
                 </div>
               </div>

@@ -172,7 +172,7 @@ const sampleCustomers = [
 ];
 
 const inMemoryStore = {
-  services: [],
+  services: sampleServices,
   products: sampleProducts,
   gallery: sampleGallery,
   settings: sampleSettings,
@@ -187,6 +187,13 @@ const inMemoryStore = {
 
 const seedSampleData = () => {
   const store = global.__ELS_STORE__ || inMemoryStore;
+  store.services = Array.isArray(store.services) && store.services.length ? store.services : sampleServices;
+  store.products = Array.isArray(store.products) && store.products.length ? store.products : sampleProducts;
+  store.gallery = Array.isArray(store.gallery) && store.gallery.length ? store.gallery : sampleGallery;
+  store.settings = { ...sampleSettings, ...(store.settings || {}) };
+  store.bookings = Array.isArray(store.bookings) && store.bookings.length ? store.bookings : sampleBookings;
+  store.orders = Array.isArray(store.orders) && store.orders.length ? store.orders : sampleOrders;
+  store.customers = Array.isArray(store.customers) && store.customers.length ? store.customers : sampleCustomers;
   global.__ELS_STORE__ = store;
   return store;
 };

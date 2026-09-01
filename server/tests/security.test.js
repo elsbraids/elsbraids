@@ -54,6 +54,14 @@ test('ContactMessage schema includes required persisted data fields', () => {
   assert.ok(fields.includes('status'));
 });
 
+test('admin gallery routes support deleting an image record', () => {
+  const adminRouter = require('../routes/admin');
+  const galleryDeleteRoute = adminRouter.stack.find((layer) => layer.route && layer.route.path === '/gallery/:id');
+
+  assert.ok(galleryDeleteRoute, 'Gallery delete route should exist on the admin router');
+  assert.equal(galleryDeleteRoute.route.methods.delete, true, 'Gallery delete route should allow DELETE requests');
+});
+
 test('connectDatabase seeds service catalog records when Mongo is empty', async () => {
   const originalConnect = mongoose.connect;
   const originalDeleteMany = Service.deleteMany;
