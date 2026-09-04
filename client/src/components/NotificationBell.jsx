@@ -2,15 +2,20 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Bell } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { ContentSkeleton } from './LoadingSkeleton';
 
 const NotificationBell = () => {
   const [notifications, setNotifications] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [isOpen, setIsOpen] = useState(false);
   const navigate = useNavigate();
   const token = localStorage.getItem('customerToken') || sessionStorage.getItem('elsAdminToken');
 
   const fetchNotifications = async () => {
-    if (!token) return;
+    if (!token) {
+      setLoading(false);
+      return;
+    }
 
     try {
       const res = await fetch('/api/notifications', {
@@ -26,6 +31,8 @@ const NotificationBell = () => {
       }
     } catch (err) {
       console.error('Failed to fetch notifications', err);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -91,7 +98,9 @@ const NotificationBell = () => {
               </div>
               
               <div className="max-h-96 overflow-y-auto">
-                {notifications.length === 0 ? (
+                {loading ? (
+                  <div className="space-y-3 p-4"><ContentSkeleton className="h-14" /><ContentSkeleton className="h-14" /></div>
+                ) : notifications.length === 0 ? (
                   <div className="p-8 text-center text-gray-500 text-sm">
                     No notifications yet.
                   </div>

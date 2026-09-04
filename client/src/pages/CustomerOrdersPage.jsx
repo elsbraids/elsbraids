@@ -3,6 +3,7 @@ import axios from 'axios';
 import { Link, useNavigate } from 'react-router-dom';
 import { User, Package } from 'lucide-react';
 import { handleImageError, optimizeImageUrl } from '../utils/image';
+import { ContentSkeleton } from '../components/LoadingSkeleton';
 
 function CustomerOrdersPage() {
   const [orders, setOrders] = useState([]);
@@ -71,7 +72,7 @@ function CustomerOrdersPage() {
       </section>
 
       <div className="mx-auto max-w-5xl px-4 py-12 sm:px-6 lg:px-8">
-        {loading && <p className="mt-4 text-[#5f4253]">Loading your orders...</p>}
+        {loading && <ContentSkeleton className="mt-4 h-48" />}
 
         {!loading && error && (
           <div className="mt-4 rounded-2xl border border-[#ead4dd] bg-white p-8 text-center text-[#5f4253]">

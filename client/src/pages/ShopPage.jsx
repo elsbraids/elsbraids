@@ -4,6 +4,7 @@ import { Link } from 'react-router-dom';
 import { ShoppingBag, ArrowRight } from 'lucide-react';
 import { useCart } from '../context/CartContext';
 import { handleImageError, optimizeImageUrl } from '../utils/image';
+import { CardGridSkeleton } from '../components/LoadingSkeleton';
 
 const fallbackImage = '/hero_braids.jpg';
 
@@ -65,13 +66,13 @@ function ShopPage() {
 
       <div className="mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-8">
 
-      {loading && <p className="py-12 text-center text-[#5f4253]">Loading products...</p>}
+      {loading && <CardGridSkeleton />}
       {loadError && <p className="py-12 text-center text-red-700">Unable to load products. Please refresh and try again.</p>}
       {!loading && !loadError && !products.length && <p className="py-12 text-center text-[#5f4253]">New products are coming soon.</p>}
       {!loading && !loadError && products.length > 0 && <div className="mb-8 flex flex-wrap gap-3">
         {categories.map((category) => <button key={category} type="button" onClick={() => setActiveCategory(category)} className={`rounded-full px-4 py-2 text-sm font-semibold ${activeCategory === category ? 'bg-[#5b2b45] text-white' : 'border border-[#d9bcc7] bg-white text-[#5b2b45]'}`}>{category}</button>)}
       </div>}
-      <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
+      {!loading && !loadError && <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
         {visibleProducts.map((product) => {
           const bgImg = product.images?.[0] || fallbackImage;
 
@@ -131,7 +132,7 @@ function ShopPage() {
             </div>
           );
         })}
-      </div>
+      </div>}
       </div>
     </div>
   );

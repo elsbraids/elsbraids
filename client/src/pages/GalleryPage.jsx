@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import axios from 'axios';
 import { Eye, X } from 'lucide-react';
 import { handleImageError, optimizeImageUrl } from '../utils/image';
+import { CardGridSkeleton } from '../components/LoadingSkeleton';
 
 const categories = ['All', 'Braids', 'Curls', 'Piercing', 'Other'];
 
@@ -69,7 +70,7 @@ function GalleryPage() {
       </section>
 
       <div className="mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-8">
-        {loading && <div className="mb-8 grid gap-6 md:grid-cols-2 xl:grid-cols-3"><div className="h-[360px] animate-pulse rounded-[1.5rem] bg-[#eadde2]" /><div className="h-[360px] animate-pulse rounded-[1.5rem] bg-[#eadde2]" /><div className="h-[360px] animate-pulse rounded-[1.5rem] bg-[#eadde2]" /></div>}
+        {loading && <CardGridSkeleton className="mb-8" />}
         {loadError && <p className="py-8 text-center text-red-700">Unable to load the gallery. Please refresh and try again.</p>}
         {!loading && !loadError && <div className="mb-8 flex flex-wrap justify-center gap-3">
           {categories.map((category) => (

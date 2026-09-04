@@ -4,6 +4,7 @@ import axios from 'axios';
 import { Minus, Plus, ShoppingBag } from 'lucide-react';
 import { useCart } from '../context/CartContext';
 import { handleImageError, optimizeImageUrl } from '../utils/image';
+import { ContentSkeleton } from '../components/LoadingSkeleton';
 
 function ProductDetailsPage() {
   const { id } = useParams();
@@ -19,7 +20,7 @@ function ProductDetailsPage() {
     axios.get(`/api/products/${id}`).then((res) => setProduct(res.data.data)).catch(() => setNotFound(true)).finally(() => setLoading(false));
   }, [id]);
 
-  if (loading) return <div className="mx-auto max-w-7xl px-4 py-12 text-[#5f4253]">Loading product...</div>;
+  if (loading) return <div className="mx-auto max-w-7xl px-4 py-12"><ContentSkeleton className="h-[520px]" /></div>;
   if (notFound || !product) return <div className="mx-auto max-w-7xl px-4 py-12"><p className="text-[#5f4253]">Product not found.</p><Link to="/shop" className="mt-5 inline-flex rounded-md bg-[#5b2b45] px-5 py-3 text-sm font-semibold text-white">Back to shop</Link></div>;
 
   return (

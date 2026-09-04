@@ -3,6 +3,7 @@ import axios from 'axios';
 import { Link } from 'react-router-dom';
 import { Clock3, ArrowRight } from 'lucide-react';
 import { handleImageError, optimizeImageUrl } from '../utils/image';
+import { CardGridSkeleton } from '../components/LoadingSkeleton';
 
 const fallbackImage = '/hero_braids.jpg';
 
@@ -61,7 +62,7 @@ function ServicesPage() {
 
       <div className="mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-8">
 
-      {loading && <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3"><div className="h-[340px] animate-pulse rounded-[1.5rem] bg-[#eadde2]" /><div className="h-[340px] animate-pulse rounded-[1.5rem] bg-[#eadde2]" /><div className="h-[340px] animate-pulse rounded-[1.5rem] bg-[#eadde2]" /></div>}
+      {loading && <CardGridSkeleton />}
       {loadError && <p className="py-8 text-center text-red-700">Unable to load services. Please refresh and try again.</p>}
       {!loading && !loadError && <div className="mb-8 flex flex-wrap gap-3">
         {categories.map((category) => <button key={category} type="button" onClick={() => setActiveCategory(category)} className={`rounded-full px-4 py-2 text-sm font-semibold ${activeCategory === category ? 'bg-[#5b2b45] text-white' : 'border border-[#d9bcc7] bg-white text-[#5b2b45]'}`}>{category}</button>)}

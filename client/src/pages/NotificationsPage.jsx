@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Bell, CheckCircle, Package, Calendar, ShieldAlert } from 'lucide-react';
+import { ContentSkeleton } from '../components/LoadingSkeleton';
 
 const NotificationsPage = () => {
   const [notifications, setNotifications] = useState([]);
@@ -107,7 +108,7 @@ const NotificationsPage = () => {
 
       <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
         {loading ? (
-          <div className="p-12 text-center text-gray-500">Loading notifications...</div>
+          <div className="space-y-3 p-6"><ContentSkeleton className="h-20" /><ContentSkeleton className="h-20" /><ContentSkeleton className="h-20" /></div>
         ) : filteredNotifs.length === 0 ? (
           <div className="p-16 text-center">
             <div className="w-16 h-16 bg-gray-50 rounded-full flex items-center justify-center mx-auto mb-4">

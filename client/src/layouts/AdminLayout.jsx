@@ -3,6 +3,7 @@ import { Outlet, Link, NavLink, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { Bell, CalendarDays, ExternalLink, FileText, Image, LayoutDashboard, LogOut, Mail, Menu, MessageSquare, Package, Settings, ShoppingBag, Star, Users, X } from 'lucide-react';
 import NotificationBell from '../components/NotificationBell';
+import { ContentSkeleton } from '../components/LoadingSkeleton';
 
 function AdminLayout() {
   const navigate = useNavigate();
@@ -43,8 +44,8 @@ function AdminLayout() {
 
   if (loading) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-[#f7edf1] text-[#5b2b45]">
-        <div className="text-lg font-semibold">Loading admin panel...</div>
+      <div className="flex min-h-screen items-center justify-center bg-[#f7edf1]">
+        <ContentSkeleton className="h-16 w-64" />
       </div>
     );
   }

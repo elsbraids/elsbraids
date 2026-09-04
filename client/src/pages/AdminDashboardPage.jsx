@@ -27,6 +27,7 @@ import {
   YAxis,
 } from "recharts";
 import { handleImageError, optimizeImageUrl } from "../utils/image";
+import { ContentSkeleton } from "../components/LoadingSkeleton";
 
 const uniqueCatalogItems = (items, key) => {
   const seen = new Set();
@@ -827,6 +828,20 @@ function AdminDashboardPage() {
       },
     );
   };
+
+  if (loading) {
+    return (
+      <div className="space-y-6" aria-label="Loading dashboard">
+        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+          {Array.from({ length: 8 }, (_, index) => <ContentSkeleton key={index} className="h-28" />)}
+        </div>
+        <div className="grid gap-6 xl:grid-cols-2">
+          <ContentSkeleton className="h-80" />
+          <ContentSkeleton className="h-80" />
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-8">
