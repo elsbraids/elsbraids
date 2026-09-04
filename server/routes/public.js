@@ -25,6 +25,7 @@ const {
   sendPaymentReceipt,
   sendAdminPaymentAlert
 } = require('../utils/email');
+const apiCache = require('../middleware/cache');
 
 const authLimiter = rateLimit({ windowMs: 15 * 60 * 1000, limit: 10, standardHeaders: true, legacyHeaders: false, message: { message: 'Too many authentication attempts. Please try again later.' } });
 const actionLimiter = rateLimit({ windowMs: 15 * 60 * 1000, limit: 20, standardHeaders: true, legacyHeaders: false, message: { message: 'Too many requests. Please try again later.' } });
@@ -135,7 +136,7 @@ const createAdminToken = (admin) => jwt.sign(
 
 const respondWithStore = (res, key) => res.json({ success: true, data: inMemoryStore[key] || [] });
 
-router.get('/services', async (req, res) => {
+router.get('/services', apiCache(300), async (req, res) => {
   if (isDatabaseReady()) return res.json({ success: true, data: await Service.find({ isActive: true }).lean() });
   return respondWithStore(res, 'services');
 });
@@ -170,12 +171,12 @@ router.get('/products/:id', async (req, res) => {
   return res.json({ success: true, data: product });
 });
 
-router.get('/gallery', async (req, res) => {
+router.get('/gallery', apiCache(900), async (req, res) => {
   if (isDatabaseReady()) return res.json({ success: true, data: await Gallery.find({ isActive: true }).lean() });
   return respondWithStore(res, 'gallery');
 });
 
-router.get('/settings', async (req, res) => {
+router.get('/settings', apiCache(600), async (req, res) => {
   if (isDatabaseReady()) {
     const settings = await Settings.findOne({ key: 'main' }).lean()
       || await Settings.findOne().lean();

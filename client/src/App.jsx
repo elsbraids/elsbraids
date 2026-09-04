@@ -1,6 +1,7 @@
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import React, { Suspense, lazy } from 'react';
-import HomePage from './pages/HomePage';
+
+const HomePage = lazy(() => import('./pages/HomePage'));
 import MainLayout from './layouts/MainLayout';
 import { CartProvider } from './context/CartContext';
 import './App.css';
