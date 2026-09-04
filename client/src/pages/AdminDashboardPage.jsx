@@ -977,9 +977,21 @@ function AdminDashboardPage() {
                       </div>
                       <div>
                         <span className="block text-[10px] uppercase tracking-[0.14em] text-[#7a3855]">
-                          Amount paid
+                          Base Amount
                         </span>
-                        <span>{formatMoney(booking.paymentAmount || 0)}</span>
+                        <span>{formatMoney(booking.baseAmount || booking.paymentAmount || 0)}</span>
+                      </div>
+                      <div>
+                        <span className="block text-[10px] uppercase tracking-[0.14em] text-[#7a3855]">
+                          Processing Fee
+                        </span>
+                        <span>{formatMoney(booking.fee || 0)}</span>
+                      </div>
+                      <div>
+                        <span className="block text-[10px] uppercase tracking-[0.14em] text-[#7a3855]">
+                          Total Paid
+                        </span>
+                        <span className="font-bold text-[#5b2b45]">{formatMoney(booking.paystackAmount || booking.paymentAmount || 0)}</span>
                       </div>
                       <div>
                         <span className="block text-[10px] uppercase tracking-[0.14em] text-[#7a3855]">
@@ -1165,8 +1177,10 @@ function AdminDashboardPage() {
                     <a href={orderMapLink(order)} target="_blank" rel="noreferrer" className="mt-1 inline-flex items-center gap-1 font-semibold text-[#7a3855] underline"><ExternalLink size={12} /> Open map</a>
                     {order.notes && <div className="mt-1 text-xs italic">Note: {order.notes}</div>}
                   </td>
-                  <td className="py-4 font-semibold text-[#5b2b45]">
-                    GHC {Number(order.total || 0)}
+                  <td className="py-4 text-[#5b2b45]">
+                    <div className="font-semibold">GHC {Number(order.baseAmount || order.total || 0).toFixed(2)}</div>
+                    <div className="text-xs text-[#7a3855]">Fee: GHC {Number(order.fee || 0).toFixed(2)}</div>
+                    <div className="text-xs font-bold text-[#0f5132]">Total: GHC {Number(order.paystackAmount || order.total || 0).toFixed(2)}</div>
                   </td>
                   <td className="py-4">
                     <select

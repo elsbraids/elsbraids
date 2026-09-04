@@ -216,8 +216,20 @@ const sendAdminBookingAlert = async (admin, bookingDetails, customerDetails) => 
       <h3 style="margin-top:0;color:#5b2b45;font-size:15px;border-bottom:1px solid #f3dbe7;padding-bottom:6px;">Appointment Details</h3>
       <table width="100%" border="0" cellspacing="0" cellpadding="0" style="font-size:13px;color:#2b1d22;">
         <tr>
-          <td style="padding:4px 0;color:#7a3855;font-weight:600;width:120px;">Reference:</td>
-          <td style="padding:4px 0;font-weight:700;">${bookingDetails.reference}</td>
+          <td style="padding:6px 0;color:#7a3855;font-weight:600;width:120px;">Reference:</td>
+          <td style="padding:6px 0;font-weight:700;">${bookingDetails.reference}</td>
+        </tr>
+        <tr>
+          <td style="padding:6px 0;color:#7a3855;font-weight:600;">Amount:</td>
+          <td style="padding:6px 0;">GHS ${Number(bookingDetails.baseAmount || bookingDetails.paymentAmount || 0).toFixed(2)}</td>
+        </tr>
+        <tr>
+          <td style="padding:6px 0;color:#7a3855;font-weight:600;">Processing Fee:</td>
+          <td style="padding:6px 0;">GHS ${Number(bookingDetails.fee || 0).toFixed(2)}</td>
+        </tr>
+        <tr>
+          <td style="padding:6px 0;color:#7a3855;font-weight:600;">Total Paid:</td>
+          <td style="padding:6px 0;font-weight:700;color:#0f5132;">GHS ${Number(bookingDetails.paystackAmount || bookingDetails.paymentAmount || 0).toFixed(2)}</td>
         </tr>
         <tr>
           <td style="padding:4px 0;color:#7a3855;font-weight:600;">Service:</td>
@@ -232,8 +244,16 @@ const sendAdminBookingAlert = async (admin, bookingDetails, customerDetails) => 
           <td style="padding:4px 0;text-transform:capitalize;">${bookingDetails.paymentOption || 'Full'}</td>
         </tr>
         <tr>
-          <td style="padding:4px 0;color:#7a3855;font-weight:600;">Amount Paid:</td>
-          <td style="padding:4px 0;font-weight:600;color:#0f5132;">GHS ${Number(bookingDetails.paymentAmount || 0).toFixed(2)}</td>
+          <td style="padding:4px 0;color:#7a3855;font-weight:600;">Base Amount:</td>
+          <td style="padding:4px 0;">GHS ${Number(bookingDetails.baseAmount || bookingDetails.paymentAmount || 0).toFixed(2)}</td>
+        </tr>
+        <tr>
+          <td style="padding:4px 0;color:#7a3855;font-weight:600;">Fee (2%):</td>
+          <td style="padding:4px 0;">GHS ${Number(bookingDetails.fee || 0).toFixed(2)}</td>
+        </tr>
+        <tr>
+          <td style="padding:4px 0;color:#7a3855;font-weight:600;">Total Paid:</td>
+          <td style="padding:4px 0;font-weight:600;color:#0f5132;">GHS ${Number(bookingDetails.paystackAmount || bookingDetails.paymentAmount || 0).toFixed(2)}</td>
         </tr>
       </table>
     </div>
@@ -268,8 +288,16 @@ const sendPaymentReceipt = async (customer, paymentDetails) => {
           <td style="padding:6px 0;font-weight:700;color:#5b2b45;">${paymentDetails.paymentReference || paymentDetails.reference}</td>
         </tr>
         <tr>
-          <td style="padding:6px 0;color:#7a3855;font-weight:600;">Amount Paid:</td>
-          <td style="padding:6px 0;font-weight:700;color:#0f5132;font-size:16px;">GHS ${Number(paymentDetails.total || paymentDetails.amount || 0).toFixed(2)}</td>
+          <td style="padding:6px 0;color:#7a3855;font-weight:600;">Base Amount:</td>
+          <td style="padding:6px 0;">GHS ${Number(paymentDetails.baseAmount || paymentDetails.total || paymentDetails.amount || 0).toFixed(2)}</td>
+        </tr>
+        <tr>
+          <td style="padding:6px 0;color:#7a3855;font-weight:600;">Processing Fee:</td>
+          <td style="padding:6px 0;">GHS ${Number(paymentDetails.fee || 0).toFixed(2)}</td>
+        </tr>
+        <tr>
+          <td style="padding:6px 0;color:#7a3855;font-weight:600;">Total Paid:</td>
+          <td style="padding:6px 0;font-weight:700;color:#0f5132;font-size:16px;">GHS ${Number(paymentDetails.paystackAmount || paymentDetails.total || paymentDetails.amount || 0).toFixed(2)}</td>
         </tr>
         <tr>
           <td style="padding:6px 0;color:#7a3855;font-weight:600;">Payment Gateway:</td>
@@ -339,8 +367,16 @@ const sendAdminPaymentAlert = async (admin, paymentDetails) => {
           <td style="padding:6px 0;font-weight:700;">${paymentDetails.paymentReference || paymentDetails.reference}</td>
         </tr>
         <tr>
-          <td style="padding:6px 0;color:#7a3855;font-weight:600;">Total Amount:</td>
-          <td style="padding:6px 0;font-weight:700;color:#0f5132;font-size:16px;">GHS ${Number(paymentDetails.total || paymentDetails.amount || 0).toFixed(2)}</td>
+          <td style="padding:6px 0;color:#7a3855;font-weight:600;">Base Amount:</td>
+          <td style="padding:6px 0;">GHS ${Number(paymentDetails.baseAmount || paymentDetails.total || paymentDetails.amount || 0).toFixed(2)}</td>
+        </tr>
+        <tr>
+          <td style="padding:6px 0;color:#7a3855;font-weight:600;">Fee:</td>
+          <td style="padding:6px 0;">GHS ${Number(paymentDetails.fee || 0).toFixed(2)}</td>
+        </tr>
+        <tr>
+          <td style="padding:6px 0;color:#7a3855;font-weight:600;">Total Paid:</td>
+          <td style="padding:6px 0;font-weight:700;color:#0f5132;font-size:16px;">GHS ${Number(paymentDetails.paystackAmount || paymentDetails.total || paymentDetails.amount || 0).toFixed(2)}</td>
         </tr>
       </table>
     </div>

@@ -55,7 +55,10 @@ const bookingSchema = new mongoose.Schema(
     bookingImage1: { type: String, default: '' },
     bookingImage2: { type: String, default: '' },
     paymentOption: { type: String, enum: ['half', 'full'], default: 'full' },
-    paymentAmount: { type: Number, default: 0 },
+    baseAmount: { type: Number, default: 0 },
+    paystackAmount: { type: Number, default: 0 },
+    fee: { type: Number, default: 0 },
+    paymentAmount: { type: Number, default: 0 }, // Deprecated or kept for backwards compatibility
     paymentStatus: { type: String, enum: ['Pending', 'Paid', 'Failed'], default: 'Pending' },
     status: { type: String, enum: ['Pending', 'Confirmed', 'Completed', 'Cancelled'], default: 'Pending' },
   },
@@ -75,7 +78,10 @@ const orderSchema = new mongoose.Schema(
     googleLocation: { type: String, default: '' },
     notes: { type: String, default: '' },
     paymentOption: { type: String, enum: ['half', 'full'] },
-    paymentAmount: { type: Number, min: 0 },
+    paymentAmount: { type: Number, min: 0 }, // Kept for backwards compatibility
+    baseAmount: { type: Number, default: 0 },
+    paystackAmount: { type: Number, default: 0 },
+    fee: { type: Number, default: 0 },
     items: [{ productId: String, name: String, quantity: { type: Number, min: 1 }, price: { type: Number, min: 0 } }],
     subtotal: { type: Number, required: true, min: 0 },
     deliveryFee: { type: Number, required: true, min: 0, default: 0 },

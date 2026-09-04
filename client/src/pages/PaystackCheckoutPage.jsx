@@ -46,9 +46,13 @@ function PaystackCheckoutPage() {
       try {
         const verification = await axios.get(`/api/payments/verify/${encodeURIComponent(reference)}`, { withCredentials: true });
         if (verification.data.data?.status !== 'success') throw new Error('Payment verification failed');
-        await axios.post('/api/orders', { ...form, items: cart.map((item) => ({ productId: item.id, quantity: item.quantity })), paymentReference: reference }, { withCredentials: true });
+        const orderResponse = await axios.post('/api/orders', { ...form, items: cart.map((item) => ({ productId: item.id, quantity: item.quantity })), paymentReference: reference }, { withCredentials: true });
         clearCart();
-        alert('Payment successful and order placed.');
+        const orderData = orderResponse.data.data;
+        const baseAmount = orderData.baseAmount || subtotal;
+        const fee = orderData.fee || Math.round(baseAmount * 0.02);
+        const total = orderData.paystackAmount || Math.round(baseAmount * 1.02);
+        alert(`Payment successful and order placed.\nReceipt: Amount GHC ${baseAmount} + Fee GHC ${fee} = Total GHC ${total}`);
         navigate('/shop', { replace: true });
       } catch (error) {
         console.error('[payment] Redirect verification failed:', error);

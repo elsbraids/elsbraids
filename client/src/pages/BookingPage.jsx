@@ -123,11 +123,16 @@ function BookingPage() {
           paymentReference: paystackReference,
         };
 
-        await axios.post('/api/bookings', bookingPayload, { withCredentials: true });
+        const bookingResponse = await axios.post('/api/bookings', bookingPayload, { withCredentials: true });
         sessionStorage.removeItem(bookingDraftKey);
+        const bookingData = bookingResponse.data.data;
+        const baseAmount = bookingData.baseAmount || bookingPayload.paymentAmount;
+        const fee = bookingData.fee || Math.round(baseAmount * 0.02);
+        const total = bookingData.paystackAmount || Math.round(baseAmount * 1.02);
+        
         setStatusMessage({
           type: 'success',
-          text: 'Your booking has been confirmed and is now visible to the admin dashboard.',
+          text: `Your booking has been confirmed and is now visible to the admin dashboard. Receipt: Amount GHC ${baseAmount} + Fee GHC ${fee} = Total GHC ${total}`,
         });
         setTimeout(() => navigate('/account/orders', { replace: true }), 1200);
       } catch (error) {

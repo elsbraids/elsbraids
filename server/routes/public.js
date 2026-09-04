@@ -26,6 +26,7 @@ const {
   sendAdminPaymentAlert
 } = require('../utils/email');
 const apiCache = require('../middleware/cache');
+const { calculatePaystackAmount, calculateFee } = require('../utils/payment');
 
 const authLimiter = rateLimit({ windowMs: 15 * 60 * 1000, limit: 10, standardHeaders: true, legacyHeaders: false, message: { message: 'Too many authentication attempts. Please try again later.' } });
 const actionLimiter = rateLimit({ windowMs: 15 * 60 * 1000, limit: 20, standardHeaders: true, legacyHeaders: false, message: { message: 'Too many requests. Please try again later.' } });
@@ -44,11 +45,14 @@ router.post('/payment', customerProtect, actionLimiter, async (req, res) => {
     return res.status(503).json({ success: false, message: 'Paystack payment service is not configured.' });
   }
   try {
-    console.log('[payment] Initializing Paystack payment:', { amount: numericAmount, email: customerEmail, reference: paymentReference });
+    const baseAmountInPesewas = Math.round(numericAmount);
+    const paystackAmount = Math.round(baseAmountInPesewas * 1.02);
+    
+    console.log('[payment] Initializing Paystack payment:', { baseAmountInPesewas, paystackAmount, email: customerEmail, reference: paymentReference });
     const response = await fetch('https://api.paystack.co/transaction/initialize', {
       method: 'POST',
       headers: { Authorization: `Bearer ${process.env.PAYSTACK_SECRET_KEY}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ amount: Math.round(numericAmount), email: customerEmail, reference: paymentReference, currency: 'GHS', callback_url: `${process.env.CLIENT_URL || 'http://localhost:5173'}/checkout` }),
+      body: JSON.stringify({ amount: paystackAmount, email: customerEmail, reference: paymentReference, currency: 'GHS', callback_url: `${process.env.CLIENT_URL || 'http://localhost:5173'}/checkout` }),
     });
     const payload = await response.json();
     if (!response.ok || !payload.status || !payload.data?.authorization_url) {
@@ -83,12 +87,15 @@ const initializeBookingPayment = async (req, res) => {
   }
 
   try {
-    console.log('[booking-payment] Initializing Paystack booking payment:', { amount: numericAmount, email: customerEmail, reference: paymentReference });
+    const baseAmountInPesewas = Math.round(numericAmount);
+    const paystackAmount = Math.round(baseAmountInPesewas * 1.02);
+
+    console.log('[booking-payment] Initializing Paystack booking payment:', { baseAmountInPesewas, paystackAmount, email: customerEmail, reference: paymentReference });
     const response = await fetch('https://api.paystack.co/transaction/initialize', {
       method: 'POST',
       headers: { Authorization: `Bearer ${process.env.PAYSTACK_SECRET_KEY}`, 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        amount: Math.round(numericAmount),
+        amount: paystackAmount,
         email: customerEmail,
         reference: paymentReference,
         currency: 'GHS',
@@ -214,9 +221,12 @@ router.post('/bookings', customerProtect, actionLimiter, async (req, res) => {
   } catch {
     return res.status(502).json({ message: 'Unable to verify payment.' });
   }
-  const expectedAmount = Math.round(Number(service.price) * (paymentOption === 'half' ? 0.5 : 1) * 100);
+  const expectedBaseAmountInPesewas = Math.round(Number(service.price) * (paymentOption === 'half' ? 0.5 : 1) * 100);
+  const expectedPaystackAmountInPesewas = Math.round(expectedBaseAmountInPesewas * 1.02);
+  const expectedFeeInPesewas = expectedPaystackAmountInPesewas - expectedBaseAmountInPesewas;
+
   const transaction = verification?.data;
-  if (!verification?.status || transaction?.status !== 'success' || transaction.currency !== 'GHS' || Number(transaction.amount) !== expectedAmount || String(transaction.customer?.email || '').toLowerCase() !== email.toLowerCase()) return res.status(400).json({ message: 'Payment verification failed.' });
+  if (!verification?.status || transaction?.status !== 'success' || transaction.currency !== 'GHS' || Number(transaction.amount) !== expectedPaystackAmountInPesewas || String(transaction.customer?.email || '').toLowerCase() !== email.toLowerCase()) return res.status(400).json({ message: 'Payment verification failed.' });
 
   const bookingCount = isDatabaseReady() ? await Booking.countDocuments() : inMemoryStore.bookings.length;
   const reference = `ELS-${new Date().getFullYear()}-${String(bookingCount + 1).padStart(5, '0')}`;
@@ -237,7 +247,9 @@ router.post('/bookings', customerProtect, actionLimiter, async (req, res) => {
     paymentStatus: 'Paid',
     status: 'Pending',
     paymentOption,
-    paymentAmount: expectedAmount / 100,
+    baseAmount: expectedBaseAmountInPesewas / 100,
+    paystackAmount: expectedPaystackAmountInPesewas / 100,
+    fee: expectedFeeInPesewas / 100,
     createdAt: new Date().toISOString(),
   };
 
@@ -249,10 +261,12 @@ router.post('/bookings', customerProtect, actionLimiter, async (req, res) => {
       location: booking.location,
       googleLocation: booking.googleLocation,
       paymentOption,
-      paymentAmount: booking.paymentAmount,
+      baseAmount: booking.baseAmount,
+      paystackAmount: booking.paystackAmount,
+      fee: booking.fee,
       paymentStatus: 'Paid',
     });
-    await Payment.create({ bookingId: saved._id, customerId: req.customer._id, reference: paymentReference, amount: expectedAmount, currency: 'GHS', status: 'Paid' });
+    await Payment.create({ bookingId: saved._id, customerId: req.customer._id, reference: paymentReference, amount: expectedPaystackAmountInPesewas, currency: 'GHS', status: 'Paid' });
     const payload = saved.toObject ? saved.toObject() : { ...saved };
     payload.id = payload.id || payload._id?.toString();
     delete payload._id;
@@ -326,8 +340,13 @@ router.post('/orders', customerProtect, actionLimiter, async (req, res) => {
   } catch {
     return res.status(502).json({ message: 'Unable to verify payment.' });
   }
+
+  const baseAmountInPesewas = Math.round(total * 100);
+  const expectedPaystackAmountInPesewas = Math.round(baseAmountInPesewas * 1.02);
+  const expectedFeeInPesewas = expectedPaystackAmountInPesewas - baseAmountInPesewas;
+
   const transaction = verification?.data;
-  if (!verification?.status || transaction?.status !== 'success' || transaction.currency !== 'GHS' || Number(transaction.amount) !== Math.round(total * 100) || String(transaction.customer?.email || '').toLowerCase() !== email.toLowerCase()) {
+  if (!verification?.status || transaction?.status !== 'success' || transaction.currency !== 'GHS' || Number(transaction.amount) !== expectedPaystackAmountInPesewas || String(transaction.customer?.email || '').toLowerCase() !== email.toLowerCase()) {
     return res.status(400).json({ message: 'Payment verification failed.' });
   }
 
@@ -343,7 +362,10 @@ router.post('/orders', customerProtect, actionLimiter, async (req, res) => {
     googleLocation: cleanText(googleLocation || address, 300),
     notes: cleanText(notes, 1000),
     items: trustedItems,
-    total,
+    baseAmount: total,
+    paystackAmount: expectedPaystackAmountInPesewas / 100,
+    fee: expectedFeeInPesewas / 100,
+    total: expectedPaystackAmountInPesewas / 100, // kept for backwards compat or total paid
     status: 'Pending',
     paymentStatus: 'Paid',
     paymentMethod: 'Paystack',
@@ -353,7 +375,7 @@ router.post('/orders', customerProtect, actionLimiter, async (req, res) => {
 
   if (isDatabaseReady()) {
     const savedOrder = await Order.create({ ...order, customerId: req.customer._id, subtotal: total, deliveryFee: 0, currency: 'GHS' });
-    await Payment.create({ orderId: savedOrder._id, customerId: req.customer._id, reference: paymentReference, amount: Math.round(total * 100), currency: 'GHS', status: 'Paid' });
+    await Payment.create({ orderId: savedOrder._id, customerId: req.customer._id, reference: paymentReference, amount: expectedPaystackAmountInPesewas, currency: 'GHS', status: 'Paid' });
     
     // Send email via Brevo
     await sendPaymentReceipt(req.customer, { paymentReference, total, items: trustedItems });
